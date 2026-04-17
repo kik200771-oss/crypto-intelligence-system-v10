@@ -1,0 +1,30 @@
+GitHub Setup Commands for CIS V10.0-r1
+=========================================
+
+After creating repository on GitHub, run:
+
+# Add remote origin (replace YOUR_USERNAME with actual GitHub username)
+git remote add origin https://github.com/YOUR_USERNAME/crypto-intelligence-system-v10.git
+
+# Push to GitHub
+git branch -M main
+git push -u origin main
+
+# Verify remote connection
+git remote -v
+
+Repository URL will be:
+https://github.com/YOUR_USERNAME/crypto-intelligence-system-v10
+
+Repository Features:
+- ✅ Complete CIS V10.0-r1 architecture
+- ✅ 4 ready components (13.3% progress)
+- ✅ Task management system
+- ✅ Documentation and technical specs
+- ✅ CLI and dashboard tools
+- ✅ MCP integration scripts
+
+For Claude.ai web access:
+1. Share repository URL
+2. Reference specific files via GitHub URLs
+3. Use GitHub's file explorer for navigation
