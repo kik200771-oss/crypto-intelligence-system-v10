@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["pattern_id", "name", "status", "valid_in_regimes", "confirmed_cases"],
+  "properties": {
+    "pattern_id": {"type": "string"},
+    "name": {"type": "string"},
+    "status": {"type": "string", "enum": ["testing", "candidate", "confirmed", "rejected", "overfit", "unstable"]},
+    "valid_in_regimes": {"type": "array", "items": {"type": "string"}},
+    "confirmed_cases": {"type": "integer", "minimum": 0},
+    "total_cases": {"type": "integer", "minimum": 0},
+    "oos_performance": {"type": "number"},
+    "base_weight": {"type": "number", "minimum": 0, "maximum": 1},
+    "orthogonalized_weight": {"type": "number", "minimum": 0, "maximum": 1},
+    "pattern_family_id": {"type": "string"},
+    "axiom_proxy": {"type": "boolean"},
+    "epistemic_status": {"type": "string", "enum": ["direct", "approximate", "uncertain"]}
+  }
+}

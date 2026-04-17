@@ -1,0 +1,8 @@
+2026-04-17 19:48:11,985 - data_quality_gates - INFO - DataQualityGates инициализированы
+2026-04-17 19:48:11,986 - data_quality_gates - INFO - Gates result for BTCUSDT: passed=False, blocked=False, penalty=0.100
+2026-04-17 19:48:11,986 - data_quality_gates - INFO - Gates result for BTCUSDT: passed=False, blocked=True, penalty=0.100
+2026-04-17 19:48:23,327 - data_quality_gates - INFO - DataQualityGates инициализированы
+2026-04-17 19:48:23,327 - data_quality_gates - INFO - Gates result for BTCUSDT: passed=False, blocked=False, penalty=0.100
+2026-04-17 19:48:50,539 - data_quality_gates - INFO - DataQualityGates инициализированы
+2026-04-17 19:48:50,539 - data_quality_gates - INFO - Gates result for BTCUSDT: passed=False, blocked=False, penalty=0.100
+2026-04-17 19:48:50,539 - data_quality_gates - INFO - Gates result for BTCUSDT: passed=False, blocked=False, penalty=0.100

@@ -84,3 +84,17 @@ config/api_keys.json
 *.parquet
 *.h5
 *.hdf5
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# MCP and temporary files
+test-mcp.js
+simple-mcp-server.js
+
+# Exports and generated files
+exports/
+*.html

@@ -1,0 +1,122 @@
+{
+  "TRZ-001": {
+    "contradiction": "Точность ↑ vs Скорость первого прогноза ↓",
+    "resolution": "candidate status + staged approach",
+    "status": "resolved",
+    "version": "v7.0"
+  },
+  "TRZ-002": {
+    "contradiction": "Полнота контекста ↑ vs Размер окна ↓",
+    "resolution": "Context Orchestrator task-aware",
+    "status": "resolved",
+    "version": "v7.0"
+  },
+  "TRZ-003": {
+    "contradiction": "Чувствительность к паттернам ↑ vs Шум ↓",
+    "resolution": "Validation Engine + OOS + baseline",
+    "status": "resolved",
+    "version": "v7.0"
+  },
+  "TRZ-004": {
+    "contradiction": "Адаптивность ↑ vs Стабильность весов ↓",
+    "resolution": "Control Law beta>=alpha + drift detection",
+    "status": "resolved",
+    "version": "v7.0"
+  },
+  "TRZ-005": {
+    "contradiction": "Богатство KB ↑ vs Confirmation bias ↓",
+    "resolution": "KB = только контекст, Inference Boundary",
+    "status": "resolved",
+    "version": "v7.0"
+  },
+  "TRZ-006": {
+    "contradiction": "Персонализация ↑ vs Объективность ↓",
+    "resolution": "bias_log + warnings (не фильтрация)",
+    "status": "resolved",
+    "version": "v7.1"
+  },
+  "TRZ-007": {
+    "contradiction": "Глубина DSL ↑ vs Сложность создания ↓",
+    "resolution": "hypothesis_formalizer через Claude API",
+    "status": "resolved",
+    "version": "v7.1"
+  },
+  "TRZ-008": {
+    "contradiction": "Понятность уверенности ↑ vs Честность uncertainty ↓",
+    "resolution": "conformal_intervals + calibration_bucket + UI rename",
+    "status": "resolved",
+    "version": "V9.0"
+  },
+  "TRZ-009": {
+    "contradiction": "Скорость обучения ↑ vs Шум в весах ↓",
+    "resolution": "market_condition_adaptive rates",
+    "status": "resolved",
+    "version": "V9.0"
+  },
+  "TRZ-010": {
+    "contradiction": "Богатство паттернов ↑ vs Мультиколлинеарность ↓",
+    "resolution": "Family Cap + Correlation Penalty + orthogonalized_weight",
+    "status": "resolved",
+    "version": "V9.0"
+  },
+  "TRZ-011": {
+    "contradiction": "Детерминизм ↑ vs Адаптивность ↓",
+    "resolution": "Determinism Contract 8 параметров + H(Pi_t) hash",
+    "status": "resolved",
+    "version": "V10.0"
+  },
+  "TRZ-012": {
+    "contradiction": "Calibration ↑ vs Скорость feedback ↓",
+    "resolution": "Tx_Forecast/Tx_Feedback split — две транзакции",
+    "status": "resolved",
+    "version": "V10.0"
+  },
+  "TRZ-013": {
+    "contradiction": "Governance ↑ vs Operational flexibility ↓",
+    "resolution": "Config Governance Partition: Safe/Heuristic/Model-semantic",
+    "status": "resolved",
+    "version": "V10.0"
+  },
+  "TRZ-014": {
+    "contradiction": "Epistemic guardrail ↑ vs Scoring speed ↓",
+    "resolution": "AXM = post-scoring guardrail only, не pre-filter",
+    "status": "resolved",
+    "version": "V10.0"
+  },
+  "TRZ-015": {
+    "contradiction": "Stability ↑ vs Sensitivity к режимам ↓",
+    "resolution": "Multiple Lyapunov P_r + ADT tau=71",
+    "status": "resolved",
+    "version": "V10.0"
+  },
+  "TRZ-016": {
+    "contradiction": "Coverage guarantee ↑ vs Interval width ↓",
+    "resolution": "Conformal UQ asymmetric + conservative fallback",
+    "status": "resolved",
+    "version": "V10.0"
+  },
+  "TRZ-017": {
+    "contradiction": "Feasibility check ↑ vs Latency ↓",
+    "resolution": "B_sev weighted + lightweight per-cycle check",
+    "status": "resolved",
+    "version": "V10.0"
+  },
+  "TRZ-018": {
+    "contradiction": "Защита данных ↑ vs Доступность при отказе Gate ↓",
+    "resolution": "Stale Cache Policy — degrade вместо block, stale_cache_ttl",
+    "status": "resolved",
+    "version": "V10.0"
+  },
+  "TRZ-019": {
+    "contradiction": "Быстрый control ↑ vs Медленный governance ↓",
+    "resolution": "Fast/Slow Feedback Split — два независимых контура",
+    "status": "resolved",
+    "version": "V10.0"
+  },
+  "TRZ-020": {
+    "contradiction": "Устойчивость ↑ vs Чувствительность ↓",
+    "resolution": "Oscillation circuit breaker + dampening rule (MAX_WEIGHT_DELTA, phase lag)",
+    "status": "resolved",
+    "version": "V10.0"
+  }
+}

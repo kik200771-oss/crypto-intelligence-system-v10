@@ -1,0 +1,10 @@
+2026-04-17 19:48:11,983 - schema_validator - INFO - SchemaValidator инициализирован
+2026-04-17 19:48:11,984 - schema_validator - INFO - Схема загружена и закэширована: ohlcv_candle
+2026-04-17 19:48:11,985 - schema_validator - INFO - Валидация успешна: ohlcv_candle
+2026-04-17 19:49:06,791 - schema_validator - INFO - SchemaValidator инициализирован
+2026-04-17 19:49:06,792 - schema_validator - INFO - Схема загружена и закэширована: ohlcv_candle
+2026-04-17 19:49:06,793 - schema_validator - INFO - Валидация успешна: ohlcv_candle
+2026-04-17 19:49:06,793 - schema_validator - INFO - Схема загружена и закэширована: forecast_output
+2026-04-17 19:49:06,794 - schema_validator - INFO - Валидация успешна: forecast_output
+2026-04-17 19:49:06,794 - schema_validator - INFO - Схема загружена и закэширована: pattern
+2026-04-17 19:49:06,795 - schema_validator - INFO - Валидация успешна: pattern

@@ -1,0 +1,24 @@
+{
+  "sources": {
+    "CoinDesk": {
+      "trust": 0.5,
+      "category": "news"
+    },
+    "CoinTelegraph": {
+      "trust": 0.5,
+      "category": "news"
+    },
+    "Decrypt": {
+      "trust": 0.5,
+      "category": "news"
+    },
+    "Glassnode": {
+      "trust": 0.5,
+      "category": "onchain"
+    },
+    "Binance": {
+      "trust": 0.8,
+      "category": "exchange_data"
+    }
+  }
+}

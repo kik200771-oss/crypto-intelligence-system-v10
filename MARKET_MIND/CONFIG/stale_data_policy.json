@@ -1,0 +1,21 @@
+{
+  "stale_cache_ttl_seconds": 300,
+  "uncertainty_penalty": 0.1,
+  "sources": {
+    "ohlcv": {
+      "ttl_seconds": 300
+    },
+    "orderbook": {
+      "ttl_seconds": 60
+    },
+    "funding_rate": {
+      "ttl_seconds": 3600
+    },
+    "onchain": {
+      "ttl_seconds": 7200
+    },
+    "macro": {
+      "ttl_seconds": 86400
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "AXM_001": {
+    "axiom": "Цена движется только через ордера",
+    "epistemic_status": "approximate",
+    "v10_proxy": "Volume spike + price change correlation (OHLCV)",
+    "axiom_proxy": true,
+    "causal_confidence_penalty": -0.15
+  },
+  "AXM_002": {
+    "axiom": "Bid/ask — механизм ценообразования",
+    "epistemic_status": "approximate",
+    "v10_proxy": "High-Low spread proxy",
+    "axiom_proxy": true,
+    "causal_confidence_penalty": -0.15
+  },
+  "AXM_003": {
+    "axiom": "Тренд имеет инерцию",
+    "epistemic_status": "direct",
+    "v10_proxy": "MA + momentum indicators"
+  },
+  "AXM_004": {
+    "axiom": "Ликвидность влияет на движение",
+    "epistemic_status": "approximate",
+    "v10_proxy": "Volume относительно rolling average",
+    "axiom_proxy": true,
+    "causal_confidence_penalty": -0.15
+  },
+  "AXM_005": {
+    "axiom": "Режим рынка определяет применимость паттернов",
+    "epistemic_status": "direct",
+    "v10_proxy": "Regime Detector R1-R6"
+  },
+  "AXM_006": {
+    "axiom": "BTC — macro-индикатор для всех альткоинов",
+    "epistemic_status": "direct",
+    "v10_proxy": "BTC OHLCV + dominance"
+  },
+  "AXM_007": {
+    "axiom": "Множественные подтверждения снижают шум",
+    "epistemic_status": "direct",
+    "v10_proxy": "Family Cap + Correlation Penalty"
+  },
+  "AXM_008": {
+    "axiom": "Крупные участники оставляют следы в объёме",
+    "epistemic_status": "approximate",
+    "v10_proxy": "Volume outlier detection (candles > 3sigma)",
+    "axiom_proxy": true,
+    "causal_confidence_penalty": -0.15
+  },
+  "AXM_009": {
+    "axiom": "Паттерн валиден только в своём режиме",
+    "epistemic_status": "direct",
+    "v10_proxy": "valid_in_regimes filter"
+  }
+}

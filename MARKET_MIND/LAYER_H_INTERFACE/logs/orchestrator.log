@@ -1,0 +1,6 @@
+[2026-04-18 00:06:41,892] test-001 | ETHUSDT | orchestrating context | start
+[2026-04-18 00:06:42,016] test-001 | ETHUSDT | OK | 124.1ms | penalty=0.0
+[2026-04-18 00:07:44,658] test-001 | ETHUSDT | orchestrating context | start
+[2026-04-18 00:07:44,783] test-001 | ETHUSDT | OK | 124.1ms | penalty=0.0
+[2026-04-18 00:07:56,324] test-final | ETHUSDT | orchestrating context | start
+[2026-04-18 00:07:56,448] test-final | ETHUSDT | OK | 124.2ms | penalty=0.0

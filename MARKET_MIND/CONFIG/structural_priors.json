@@ -1,0 +1,116 @@
+{
+  "PRI_001": {
+    "description": "Тренд продолжается чаще чем разворачивается",
+    "default_weight": 1.0,
+    "category": "trend",
+    "review_condition": ">=100 trend samples"
+  },
+  "PRI_002": {
+    "description": "Более высокий TF доминирует",
+    "default_weight": 1.0,
+    "category": "trend",
+    "review_condition": "TF conflict analysis"
+  },
+  "PRI_003": {
+    "description": "Sideways режим снижает signal quality",
+    "default_weight": 1.0,
+    "category": "regime",
+    "review_condition": "Regime detection accuracy > 70%"
+  },
+  "PRI_004": {
+    "description": "Stress режим — все паттерны под сомнением",
+    "default_weight": 1.0,
+    "category": "regime",
+    "review_condition": "Stress regime identification"
+  },
+  "PRI_005": {
+    "description": "BTC определяет направление альткоинов",
+    "default_weight": 1.0,
+    "category": "regime",
+    "review_condition": "BTC-ALT correlation > 0.6"
+  },
+  "PRI_006": {
+    "description": "IS accuracy > OOS accuracy = overfit",
+    "default_weight": 1.0,
+    "category": "validation",
+    "review_condition": "IS/OOS gap analysis"
+  },
+  "PRI_007": {
+    "description": "Confirmed_cases < 20 = ненадёжно",
+    "default_weight": 1.0,
+    "category": "validation",
+    "review_condition": "Pattern sample size"
+  },
+  "PRI_008": {
+    "description": "Паттерн вне valid_in_regimes = weight × 0.2",
+    "default_weight": 1.0,
+    "category": "validation",
+    "review_condition": "Regime validity matrix"
+  },
+  "PRI_009": {
+    "description": "Calibration_bucket=uncalibrated = высокая неопределённость",
+    "default_weight": 1.0,
+    "category": "uncertainty",
+    "review_condition": "Calibration assessment"
+  },
+  "PRI_010": {
+    "description": "Data_stale=True = расширить uncertainty interval",
+    "default_weight": 1.0,
+    "category": "uncertainty",
+    "review_condition": "Data freshness impact"
+  },
+  "PRI_011": {
+    "description": "Drift_level >= 3 = recalibration",
+    "default_weight": 1.0,
+    "category": "feedback",
+    "review_condition": "Drift monitoring"
+  },
+  "PRI_012": {
+    "description": "I-term reset при regime shift",
+    "default_weight": 1.0,
+    "category": "feedback",
+    "review_condition": "Regime transition detection"
+  },
+  "PRI_013": {
+    "description": "Phase_lag = 1 цикл для weight changes",
+    "default_weight": 1.0,
+    "category": "feedback",
+    "review_condition": "Weight update stability"
+  },
+  "PRI_014": {
+    "description": "AXM применяется после scoring, не до",
+    "default_weight": 1.0,
+    "category": "epistemic",
+    "review_condition": "Scoring pipeline order"
+  },
+  "PRI_015": {
+    "description": "KB влияет только на контекст, не на direction",
+    "default_weight": 1.0,
+    "category": "epistemic",
+    "review_condition": "KB-bias monitoring"
+  },
+  "PRI_016": {
+    "description": "GPT-критик = независимый взгляд без KB-контекста",
+    "default_weight": 1.0,
+    "category": "epistemic",
+    "review_condition": "Critical analysis independence"
+  },
+  "PRI_017": {
+    "description": "Fast Feedback max 200ms Claude-free",
+    "default_weight": 1.0,
+    "category": "operational",
+    "review_condition": "Latency benchmarks"
+  },
+  "PRI_018": {
+    "description": "Tx_Feedback = отдельная транзакция от Tx_Forecast",
+    "default_weight": 1.0,
+    "category": "operational",
+    "review_condition": "Transaction separation"
+  },
+  "PRI_019": {
+    "description": "Silence Debt = diagnostic только, не actuator",
+    "default_weight": 1.0,
+    "category": "operational",
+    "review_condition": "Silence debt monitoring"
+  }
+}

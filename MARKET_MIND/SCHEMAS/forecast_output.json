@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["forecast_id", "symbol", "direction", "confidence", "u_low", "u_high", "horizon_hours", "created_at"],
+  "properties": {
+    "forecast_id": {"type": "string"},
+    "symbol": {"type": "string"},
+    "direction": {"type": "string", "enum": ["UP", "DOWN", "NEUTRAL"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "u_low": {"type": "number", "minimum": 0, "maximum": 1},
+    "u_high": {"type": "number", "minimum": 0, "maximum": 1},
+    "horizon_hours": {"type": "integer", "enum": [1, 4, 24]},
+    "regime": {"type": "string", "enum": ["R1", "R2", "R3", "R4", "R5", "R6"]},
+    "shock_score": {"type": "number", "minimum": 0, "maximum": 1},
+    "data_stale": {"type": "boolean"},
+    "quality_flag": {"type": "string", "enum": ["ok", "degraded"]},
+    "created_at": {"type": "string"},
+    "determinism_hash": {"type": "string"}
+  }
+}

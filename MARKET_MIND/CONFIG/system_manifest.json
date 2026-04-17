@@ -1,0 +1,25 @@
+{
+  "version": "10.0",
+  "revision": "r1",
+  "created_at": "2026-04-17T17:49:31.299070",
+  "canon": {
+    "math_model": "v6.3-sealed",
+    "schematics": "V5",
+    "tz": "V10.0-r1"
+  },
+  "model_approximations": {
+    "linear_aggregation": {
+      "description": "Линейная агрегация сигналов — предполагает аддитивность",
+      "review_condition": ">=50 confirmed patterns AND OOS accuracy > 0.65",
+      "status": "active"
+    },
+    "pi_lite": {
+      "description": "PI-lite вместо полного PID — нестационарный рынок",
+      "review_condition": ">=200 verified forecasts",
+      "status": "active"
+    }
+  },
+  "required_modules": 30,
+  "btc_as_macro_indicator": true,
+  "trading_pairs_mode": "multi_pair_btc_context"
+}

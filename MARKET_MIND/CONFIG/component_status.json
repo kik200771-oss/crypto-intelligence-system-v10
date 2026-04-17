@@ -1,0 +1,152 @@
+{
+  "initialize_system": {
+    "status": "ready",
+    "updated_at": "2026-04-17T17:49:31.299461",
+    "notes": "Система инициализирована"
+  },
+  "schema_layer": {
+    "status": "ready",
+    "updated_at": "2026-04-17T20:15:45",
+    "notes": "6 schemas + validator"
+  },
+  "data_quality_gates": {
+    "status": "ready",
+    "updated_at": "2026-04-17T20:15:45",
+    "notes": "6 gates, stale cache fallback"
+  },
+  "context_orchestrator": {
+    "status": "ready",
+    "updated_at": "2026-04-18",
+    "notes": "6 inputs, parallel AXM+Prior, failover contract"
+  },
+  "streamlit_ui_basic": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "hypothesis_formalizer": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "experiment_registry": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "pattern_registry": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "backtester": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "validation_engine": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "insight_saver": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "knowledge_ingester": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "knowledge_search": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "feature_store": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "regime_detector": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "news_engine": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "trust_manager": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "macro_onchain": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "negative_knowledge_manager": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "pattern_decay_monitor": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "evidence_grading_engine": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "model_core": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "decision_audit": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "pattern_dsl_compiler": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "feedback_system": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "prediction_tracker": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "rest_api": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "backup_reports": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "prior_manager": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  },
+  "determinism_contract": {
+    "status": "not_started",
+    "updated_at": null,
+    "notes": ""
+  }
+}

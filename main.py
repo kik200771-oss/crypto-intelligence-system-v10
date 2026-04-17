@@ -23,6 +23,7 @@ from src.data.binance_client import BinanceClient
 from src.data.data_collector import DataCollector
 from src.analysis.technical_indicators import TechnicalIndicators
 from src.prediction.ml_models import CryptoPricePredictor
+from src.interfaces.terminal_interface import TerminalInterface
 
 
 def setup_logging():
@@ -353,6 +354,12 @@ def main():
                        help='Анализ портфеля')
     parser.add_argument('--config', action='store_true',
                        help='Показать конфигурацию')
+    parser.add_argument('--terminal', action='store_true',
+                       help='Запустить терминальный интерфейс с красивым выводом')
+    parser.add_argument('--dashboard', action='store_true',
+                       help='Запустить веб-дашборд')
+    parser.add_argument('--monitor', action='store_true',
+                       help='Запустить мониторинг в реальном времени')
 
     # Параметры
     parser.add_argument('--symbols', nargs='+',
@@ -380,7 +387,8 @@ def main():
 
     # Показать конфигурацию при запуске
     if args.config or (not any([args.collect_data, args.update_data,
-                                args.train_models, args.predict, args.portfolio])):
+                                args.train_models, args.predict, args.portfolio,
+                                args.terminal, args.dashboard, args.monitor])):
         config.print_config_summary()
         return
 
@@ -402,9 +410,34 @@ def main():
     if args.portfolio:
         success &= show_portfolio_analysis()
 
-    if success:
+    # Интерфейсы пользователя
+    if args.terminal:
+        interface = TerminalInterface()
+        interface.analyze_symbol(args.symbol, args.interval, 30)
+
+    if args.dashboard:
+        try:
+            from src.interfaces.dashboard import CryptoDashboard
+            dashboard = CryptoDashboard()
+            print("🚀 Запуск веб-дашборда на http://127.0.0.1:8050")
+            print("Нажмите Ctrl+C для остановки")
+            dashboard.run(debug=False)
+        except ImportError:
+            logger.error("❌ Для запуска дашборда установите: pip install dash plotly")
+        except KeyboardInterrupt:
+            logger.info("👋 Дашборд остановлен")
+
+    if args.monitor:
+        interface = TerminalInterface()
+        try:
+            symbols = [args.symbol] if args.symbol != 'BTCUSDT' else ['BTCUSDT', 'ETHUSDT']
+            interface.run_live_monitor(symbols, interval=300)
+        except KeyboardInterrupt:
+            logger.info("👋 Мониторинг остановлен")
+
+    if success and not any([args.terminal, args.dashboard, args.monitor]):
         logger.info("✅ Все операции выполнены успешно")
-    else:
+    elif not success:
         logger.error("❌ Некоторые операции завершились с ошибками")
         sys.exit(1)
 

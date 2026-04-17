@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python -c ':*)",
+      "Bash(where claude *)",
+      "Bash(dir C:\\\\Users\\\\%USERNAME%\\\\AppData\\\\Local\\\\Claude *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(npm list *)",
+      "PowerShell(npm uninstall *)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(Stop-Process *)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}
