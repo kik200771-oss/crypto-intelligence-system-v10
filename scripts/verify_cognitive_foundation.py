@@ -31,12 +31,18 @@ claude = ROOT / "CLAUDE.md"
 if claude.exists():
     content = claude.read_text(encoding="utf-8")
     markers = [
+        # v3 markers (already present):
         "§ 28. Как работают когнитивные файлы",
         "СТРУКТУРА КОМАНДЫ И РОЛИ",
         "LESSONS_LEARNED.md",
         "PATTERNS.md",
         "ANTIPATTERNS.md",
-        "Lessons applied:",  # в шаблоне отчёта § 9
+        "Lessons applied:",
+        # v4 markers (new from TASK_02.5):
+        "§ 29. Стандарт комментирования кода",
+        "§ 30. Источники правды для новой сессии",
+        "Запрет force push в main",
+        "pre_commit_check.py",
     ]
     for m in markers:
         if m not in content:
@@ -76,6 +82,35 @@ for f in required_files:
         raw = path.read_bytes()
         if raw.startswith(b"\xef\xbb\xbf"):
             errors.append(f"{f} has UTF-8 BOM (should not)")
+
+# v4: проверка наличия новых скриптов
+v4_scripts = [
+    "scripts/pre_commit_check.py",
+    "scripts/install_git_hooks.py",
+]
+for s in v4_scripts:
+    path = ROOT / s
+    if not path.is_file():
+        errors.append(f"Missing v4 script: {s}")
+
+# v4: проверка LESSONS_LEARNED v1.2
+lessons_path = ROOT / "LESSONS_LEARNED.md"
+if lessons_path.exists():
+    lessons_content = lessons_path.read_text(encoding="utf-8")
+    for new_lesson in ("## L-14:", "## L-15:", "## L-16:"):
+        if new_lesson not in lessons_content:
+            errors.append(f"LESSONS_LEARNED.md missing v1.2 entry: {new_lesson}")
+    if "v1.2" not in lessons_content:
+        errors.append("LESSONS_LEARNED.md missing v1.2 marker")
+
+# v4: проверка ANTIPATTERNS v1.2
+antipatterns_path = ROOT / "ANTIPATTERNS.md"
+if antipatterns_path.exists():
+    ap_content = antipatterns_path.read_text(encoding="utf-8")
+    if "## AP-09:" not in ap_content:
+        errors.append("ANTIPATTERNS.md missing AP-09")
+    if "v1.2" not in ap_content:
+        errors.append("ANTIPATTERNS.md missing v1.2 marker")
 
 # Финальный результат
 if errors:
