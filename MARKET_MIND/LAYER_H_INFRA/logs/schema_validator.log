@@ -1,0 +1,38 @@
+2026-04-18 23:06:33,849 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,849 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,851 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,851 - schema_validator - INFO - Schema loaded and cached: pattern
+2026-04-18 23:06:33,852 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,852 - schema_validator - ERROR - Schema file not found: C:\Users\User\AppData\Local\Temp\tmpm1y14u_7\SCHEMAS\nonexistent_schema.json
+2026-04-18 23:06:33,853 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,854 - schema_validator - INFO - Schema loaded and cached: pattern
+2026-04-18 23:06:33,856 - schema_validator - INFO - Validation successful: pattern
+2026-04-18 23:06:33,857 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,858 - schema_validator - INFO - Schema loaded and cached: pattern
+2026-04-18 23:06:33,861 - schema_validator - WARNING - Validation failed: pattern, errors: 1
+2026-04-18 23:06:33,862 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,862 - schema_validator - INFO - Schema loaded and cached: pattern
+2026-04-18 23:06:33,865 - schema_validator - INFO - Strict validation successful: pattern
+2026-04-18 23:06:33,866 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,867 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,868 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,868 - schema_validator - INFO - Schema loaded and cached: pattern
+2026-04-18 23:06:33,869 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,870 - schema_validator - INFO - Schema loaded and cached: pattern
+2026-04-18 23:06:33,870 - schema_validator - INFO - Schema cache cleared (1 items removed)
+2026-04-18 23:06:33,871 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,871 - schema_validator - INFO - Schema loaded and cached: pattern
+2026-04-18 23:06:33,871 - schema_validator - INFO - Schema loaded and cached: pattern
+2026-04-18 23:06:33,871 - schema_validator - INFO - Schema reloaded: pattern
+2026-04-18 23:06:33,872 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,873 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,874 - schema_validator - WARNING - jsonschema не установлен - валидация будет minimal
+2026-04-18 23:06:33,874 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,874 - schema_validator - WARNING - Validation failed: pattern, errors: 1
+2026-04-18 23:06:33,875 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,876 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,877 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,877 - schema_validator - INFO - Schema loaded and cached: pattern
+2026-04-18 23:06:33,880 - schema_validator - WARNING - Validation failed: pattern, errors: 1
+2026-04-18 23:06:33,881 - schema_validator - INFO - SchemaValidator V2 инициализирован
+2026-04-18 23:06:33,881 - schema_validator - INFO - SchemaValidator V2 инициализирован

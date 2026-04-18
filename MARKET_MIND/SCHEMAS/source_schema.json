@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "source_schema.json",
+  "title": "Source Schema V10.0",
+  "description": "Схема источника знаний (KB entry). Расширяется Trust Manager, Task 18.",
+  "type": "object",
+  "required": ["id", "source_type", "title", "trust_score", "created_at"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+    "source_type": {"type": "string", "enum": ["academic_paper", "exchange_data", "news_article", "user_input", "experiment_result"]},
+    "title": {"type": "string", "minLength": 1},
+
+    "trust_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    "trust_contours": {
+      "type": "object",
+      "description": "Trust boundaries по разным критериям",
+      "additionalProperties": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+    },
+
+    "url": {"type": ["string", "null"], "format": "uri"},
+    "author": {"type": ["string", "null"]},
+    "publication_date": {"type": ["string", "null"], "format": "date-time"},
+
+    "metadata": {"type": "object", "additionalProperties": true},
+    "tags": {"type": "array", "items": {"type": "string"}},
+
+    "created_at": {"type": "string", "format": "date-time"},
+    "last_verified": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "additionalProperties": false
+}

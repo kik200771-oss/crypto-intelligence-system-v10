@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "negative_schema.json",
+  "title": "Negative Knowledge Schema V10.0",
+  "description": "Схема negative knowledge entry (debunked pattern / failed hypothesis). Расширяется Task 17.",
+  "type": "object",
+  "required": ["id", "debunked_claim", "reason", "evidence_grade", "created_at"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+    "debunked_claim": {"type": "string", "minLength": 10, "description": "Что именно опровергнуто"},
+    "reason": {"type": "string", "description": "Причина опровержения (failed OOS, overfit, regime-specific, etc.)"},
+
+    "linked_pattern": {"type": ["string", "null"], "description": "ID паттерна который стал negative"},
+    "linked_hypothesis": {"type": ["string", "null"]},
+    "linked_experiment": {"type": ["string", "null"], "description": "ID эксперимента который привёл к rejection"},
+
+    "evidence_grade": {"type": "string", "enum": ["A", "B", "C", "D"]},
+    "applies_to_symbols": {"type": "array", "items": {"type": "string"}},
+    "applies_to_regimes": {"type": "array", "items": {"type": "string"}},
+
+    "created_at": {"type": "string", "format": "date-time"},
+    "last_verified_at": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "additionalProperties": false
+}

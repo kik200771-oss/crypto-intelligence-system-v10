@@ -5,9 +5,9 @@
     "notes": "Task 02: пересобран с нуля. Идемпотентно создаёт все 36 канонических директорий согласно TZ V10.0-r1 § 1.2. Использует Path(__file__).resolve() (P-01, L-03). verify_infrastructure.py [PASS]."
   },
   "schema_layer": {
-    "status": "needs_rewrite",
+    "status": "ready",
     "updated_at": "2026-04-18",
-    "notes": "Task 00 v2: только 3 из 6 схем по ТЗ, pattern имеет неправильные 6 статусов — будет переписан в Task 02 v2"
+    "notes": "Task 03: Schema Layer V2 completed. 6 canonical schemas (pattern, prediction, experiment, hypothesis, negative, source) with V9.0/V10.0 fields per TZ § 1.8. schema_validator.py rewritten with ValidationResult API, graceful degradation (L-05), snapshot ID generation. Tests 17/17 [PASS]."
   },
   "data_quality_gates": {
     "status": "needs_rewrite",

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hypothesis_schema.json",
+  "title": "Hypothesis Schema V10.0",
+  "description": "Схема гипотезы (pre-registered перед тестированием). Расширяется Task 5 Hypothesis Formalizer.",
+  "type": "object",
+  "required": ["id", "statement", "symbol", "timeframe", "status", "created_at"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+    "statement": {"type": "string", "minLength": 10, "description": "Формальное утверждение гипотезы"},
+
+    "symbol": {"type": "string", "pattern": "^[A-Z0-9]+$"},
+    "timeframe": {"type": "string", "enum": ["1m", "5m", "15m", "30m", "1h", "4h", "12h", "1d", "1w"]},
+
+    "predicted_direction": {"type": ["string", "null"], "enum": ["UP", "DOWN", "NEUTRAL", null]},
+    "predicted_effect_size": {"type": ["number", "null"]},
+
+    "status": {
+      "type": "string",
+      "enum": ["draft", "formalized", "preregistered", "tested", "archived"],
+      "description": "Lifecycle гипотезы (Task 5 определит полную логику переходов)"
+    },
+
+    "preregistered_at": {"type": ["string", "null"], "format": "date-time"},
+    "data_cutoff_date": {"type": ["string", "null"], "format": "date-time"},
+
+    "linked_experiments": {"type": "array", "items": {"type": "string"}},
+    "linked_patterns": {"type": "array", "items": {"type": "string"}},
+
+    "source": {"type": ["string", "null"], "description": "KB source id / paper / user input"},
+
+    "created_at": {"type": "string", "format": "date-time"},
+    "last_updated": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "additionalProperties": false
+}

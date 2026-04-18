@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "prediction_schema.json",
+  "title": "Prediction Schema V9.0",
+  "description": "Схема прогноза. Включает uncertainty_band, shock_score, Fast Lane поля, verification_policy.",
+  "type": "object",
+  "required": [
+    "id", "model_version", "symbol", "timeframe", "direction",
+    "confidence_point", "uncertainty_band_low", "uncertainty_band_high",
+    "shock_score", "horizon_hours", "verify_at", "created_at"
+  ],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+    "model_version": {"type": "string"},
+    "symbol": {"type": "string", "pattern": "^[A-Z0-9]+$"},
+    "timeframe": {"type": "string", "enum": ["1m", "5m", "15m", "30m", "1h", "4h", "12h", "1d", "1w"]},
+
+    "direction": {"type": "string", "enum": ["UP", "DOWN", "NEUTRAL"]},
+    "confidence_point": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    "uncertainty_band_low": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    "uncertainty_band_high": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+
+    "dominant_uncertainty": {
+      "type": ["string", "null"],
+      "enum": ["small_sample", "regime_instability", "signal_conflict", "data_quality", null]
+    },
+    "calibration_bucket": {
+      "type": "string",
+      "enum": ["uncalibrated", "low", "moderate", "high"]
+    },
+
+    "strength": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    "final_score": {"type": "number"},
+    "bull_score": {"type": "number"},
+    "bear_score": {"type": "number"},
+
+    "shock_score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    "brake_level": {"type": "string", "enum": ["none", "soft", "hard"]},
+    "brake_reason": {"type": ["string", "null"]},
+
+    "suppressed": {"type": "boolean", "default": false},
+
+    "horizon_hours": {"type": "number", "exclusiveMinimum": 0},
+    "verify_at": {"type": "string", "format": "date-time"},
+
+    "verification_policy": {
+      "type": "string",
+      "enum": ["horizon_end", "any_within_horizon", "terminal_direction", "max_favorable_excursion"]
+    },
+
+    "tf_alignment": {
+      "type": "object",
+      "properties": {
+        "senior_tf": {"type": ["string", "null"]},
+        "junior_tf": {"type": ["string", "null"]},
+        "aligned": {"type": "boolean"},
+        "conflict": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+
+    "triggered_patterns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "weight", "epistemic_status"],
+        "properties": {
+          "id": {"type": "string"},
+          "weight": {"type": "number"},
+          "epistemic_status": {"type": "string", "enum": ["validated", "validated_partial", "validated_negative"]}
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "blocked_by_anti": {"type": "array", "items": {"type": "string"}},
+    "regime_at_prediction": {"type": ["string", "null"]},
+
+    "context_snapshot_id": {"type": ["string", "null"]},
+    "context_degraded": {"type": "boolean", "default": false},
+    "prior_snapshot_id": {"type": ["string", "null"]},
+
+    "actual_direction": {"type": ["string", "null"], "enum": ["UP", "DOWN", "NEUTRAL", null]},
+    "correct": {"type": ["boolean", "null"]},
+    "verified_at": {"type": ["string", "null"], "format": "date-time"},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

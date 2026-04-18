@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pattern_schema.json",
+  "title": "Pattern Schema V9.0",
+  "description": "Схема торгового паттерна с полным набором полей V9.0 (6 статусов, epistemic_status, pattern_family, emergency, orthogonalized weight).",
+  "type": "object",
+  "required": [
+    "id", "name", "logic_dsl", "symbol", "timeframe",
+    "status", "confidence_point", "evidence_grade",
+    "created_at", "last_updated"
+  ],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$", "description": "Уникальный ID паттерна"},
+    "name": {"type": "string", "minLength": 1, "description": "Человекочитаемое имя"},
+    "logic_dsl": {"type": "string", "description": "Логика паттерна на DSL (см. dsl_grammar.md)"},
+    "logic_human": {"type": "string", "description": "Человекочитаемое описание логики"},
+    "symbol": {"type": "string", "pattern": "^[A-Z0-9]+$", "description": "Торговый символ, например BTCUSDT"},
+    "timeframe": {"type": "string", "enum": ["1m", "5m", "15m", "30m", "1h", "4h", "12h", "1d", "1w"]},
+    "window_hours": {"type": "number", "exclusiveMinimum": 0, "description": "Размер окна анализа в часах"},
+    "lag_hours_min": {"type": "number", "minimum": 0},
+    "lag_hours_max": {"type": "number", "minimum": 0},
+
+    "status": {
+      "type": "string",
+      "enum": ["testing", "candidate", "confirmed", "unstable", "decayed", "rejected"],
+      "description": "Lifecycle status (ровно 6 значений по ТЗ § 1.8)"
+    },
+
+    "confidence_point": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    "confirmed_cases": {"type": "integer", "minimum": 0},
+    "total_cases": {"type": "integer", "minimum": 0},
+    "is_performance": {"type": "number", "description": "In-sample performance"},
+    "oos_performance": {"type": "number", "description": "Out-of-sample performance"},
+    "recent_performance": {"type": "number", "description": "Recent rolling performance"},
+
+    "valid_in_regimes": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Список режимов рынка где паттерн валиден"
+    },
+    "exceptions": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+
+    "evidence_grade": {"type": "string", "enum": ["A", "B", "C", "D"]},
+    "evidence_grade_breakdown": {
+      "type": "object",
+      "properties": {
+        "temporal_precedence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "period_stability": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "asset_robustness": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "regime_sensitivity": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "confounder_sensitivity": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+      },
+      "additionalProperties": false
+    },
+    "evidence_grade_method": {
+      "type": "string",
+      "enum": ["deterministic", "claude_assisted"],
+      "description": "Способ получения evidence_grade (по ТЗ: детерминированный предпочтителен)"
+    },
+
+    "pattern_family_id": {"type": ["string", "null"], "description": "ID семейства паттернов для Family Cap"},
+    "correlation_cluster_id": {"type": ["string", "null"]},
+    "orthogonalized_weight": {"type": ["number", "null"], "description": "Вес с учётом корреляции внутри family"},
+
+    "canonical_id": {"type": ["string", "null"]},
+    "duplicate_of": {"type": ["string", "null"]},
+
+    "emergency_flag": {"type": "boolean", "default": false},
+    "emergency_reason": {"type": ["string", "null"]},
+    "emergency_at": {"type": ["string", "null"], "format": "date-time"},
+    "recovery_eligible_at": {"type": ["string", "null"], "format": "date-time"},
+
+    "epistemic_status": {
+      "type": "string",
+      "enum": ["validated", "validated_partial", "validated_negative"]
+    },
+
+    "linked_patterns": {"type": "array", "items": {"type": "string"}},
+    "linked_negatives": {"type": "array", "items": {"type": "string"}},
+    "source_hypothesis": {"type": ["string", "null"]},
+
+    "market_regime_at_discovery": {"type": ["string", "null"]},
+    "btc_price_at_discovery": {"type": ["number", "null"]},
+
+    "created_at": {"type": "string", "format": "date-time"},
+    "last_updated": {"type": "string", "format": "date-time"},
+    "decay_check_at": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "additionalProperties": false
+}
