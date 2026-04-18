@@ -11,7 +11,20 @@
       "PowerShell(npm uninstall *)",
       "PowerShell(Remove-Item *)",
       "PowerShell(Stop-Process *)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(python scripts/create_audit_zip.py)",
+      "PowerShell(cmdkey *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(del _auth_test.txt)",
+      "Bash(rm -f _auth_test.txt)",
+      "Bash(\" CLAUDE.md)",
+      "Bash(findstr /C:\"\\\\\\\\`\" CLAUDE.md)",
+      "Bash(git checkout *)",
+      "Bash(xargs rm *)",
+      "Bash(python scripts/verify_cleanup.py)"
     ]
   }
 }

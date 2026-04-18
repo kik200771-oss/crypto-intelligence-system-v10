@@ -1,23 +1,23 @@
 {
   "initialize_system": {
-    "status": "ready",
-    "updated_at": "2026-04-17T17:49:31.299461",
-    "notes": "Система инициализирована"
+    "status": "needs_rebuild",
+    "updated_at": "2026-04-18",
+    "notes": "Task 00 v2: только 5 из 8 слоёв, LAYER_H неправильное имя, нет подпапок — будет пересобран в Task 01 v2"
   },
   "schema_layer": {
-    "status": "ready",
-    "updated_at": "2026-04-17T20:15:45",
-    "notes": "6 schemas + validator"
+    "status": "needs_rewrite",
+    "updated_at": "2026-04-18",
+    "notes": "Task 00 v2: только 3 из 6 схем по ТЗ, pattern имеет неправильные 6 статусов — будет переписан в Task 02 v2"
   },
   "data_quality_gates": {
-    "status": "ready",
-    "updated_at": "2026-04-17T20:15:45",
-    "notes": "6 gates, stale cache fallback"
+    "status": "needs_rewrite",
+    "updated_at": "2026-04-18",
+    "notes": "Task 00 v2: Gate 6 реализован как Staleness вместо Market Integrity (wash trading) — будет переписан в Task 02b"
   },
   "context_orchestrator": {
-    "status": "ready",
+    "status": "not_started",
     "updated_at": "2026-04-18",
-    "notes": "6 inputs, parallel AXM+Prior, failover contract"
+    "notes": "Task 00 v2: откачено — реализация не соответствовала ТЗ (Input Assembler вместо Context Orchestrator) — будет создан с нуля в Task 03 v2"
   },
   "streamlit_ui_basic": {
     "status": "not_started",

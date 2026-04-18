@@ -98,3 +98,22 @@ simple-mcp-server.js
 # Exports and generated files
 exports/
 *.html
+
+# Audit archives
+cis_audit_*.zip
+
+# Legacy artifacts (safety)
+src/
+data/*.db
+exports/
+HISTORY/
+/ENGINE/
+
+# Python
+*.pyc
+__pycache__/
+
+# Environment (double safety)
+.env
+.env.local
+.env.*.local
