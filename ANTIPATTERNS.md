@@ -5,7 +5,7 @@
 > Пополняется **только через TASK от архитектора** — сам не добавляй.
 >
 > Формат одного антипаттерна описан в CLAUDE.md § 28.
-> Текущее количество антипаттернов: **8** (AP-01 ... AP-08).
+> Текущее количество антипаттернов: **9** (AP-01 ... AP-09).
 
 ---
 
@@ -40,6 +40,8 @@ grep -rn "/home/" MARKET_MIND/ENGINE/ 2>/dev/null
 grep -rn "/Users/" MARKET_MIND/ENGINE/ 2>/dev/null
 # Все три должны вернуть пустой результат
 ```
+
+Автоматическая проверка: `scripts/pre_commit_check.py` включает detection hardcoded путей (см. AP-09).
 
 ---
 
@@ -123,6 +125,8 @@ grep -rn "except:" MARKET_MIND/ENGINE/ 2>/dev/null
 grep -rn "except Exception: pass" MARKET_MIND/ENGINE/ 2>/dev/null
 # Должны вернуть пустой результат
 ```
+
+Автоматическая проверка: `scripts/pre_commit_check.py` использует AST-парсинг для детекции `except:` без тела с логированием (см. AP-09 infrastructure).
 
 ---
 
@@ -212,11 +216,9 @@ GITHUB_TOKEN=ghp_REDACTED_CLASSIC_TOKEN_WAS_HERE_DO_NOT_RESTORE
 # Перед коммитом:
 git diff --cached | grep -iE "(ghp_|github_pat_|sk-|api[_-]?key)" 
 # Должен быть пустой результат
-
-# В коде:
-grep -rn "ghp_\|github_pat_" MARKET_MIND/ENGINE/ scripts/ 2>/dev/null
-# Должен быть пустой результат
 ```
+
+Автоматическая проверка: `scripts/pre_commit_check.py` + git hook (см. AP-09 infrastructure).
 
 ---
 
@@ -226,7 +228,7 @@ grep -rn "ghp_\|github_pat_" MARKET_MIND/ENGINE/ scripts/ 2>/dev/null
 **Severity:** MEDIUM
 
 **Что это:**
-Тестовый скрипт или CLI-утилита использует emoji в `print()` — `✅`, `❌`, `⚠️`, `🎯` и т.п.
+Тестовый скрипт или CLI-утилита использует emoji в `print()`.
 
 **Почему это вредно:**
 - На Windows с cp1251 (русская локаль по умолчанию) скрипт падает с `UnicodeEncodeError`
@@ -234,21 +236,13 @@ grep -rn "ghp_\|github_pat_" MARKET_MIND/ENGINE/ scripts/ 2>/dev/null
 - Без fix через `sys.stdout.reconfigure()` проблему трудно отлавливать
 
 **Реальный случай (когда встречалось):**
-2026-04-17, тесты TASK_03 v1:
-```python
-print(f'\u2705 Test 1 OK: status={result["status"]}')
-# → UnicodeEncodeError: 'charmap' codec can't encode character '\u2705'
-```
+2026-04-17, тесты TASK_03 v1 выводили Unicode-символы через `print()` без UTF-8 reconfigure. На Windows cp1251 падали с `UnicodeEncodeError: 'charmap' codec can't encode character`.
 
 **Правильная альтернатива:**
 Паттерн **P-05** — ASCII-маркеры (`[OK]`, `[FAIL]`, `[PASS]`, `[WARN]`) плюс опциональный UTF-8 reconfigure в начале скрипта.
 
 **Как проверить что я не допускаю:**
-```bash
-# Ищем emoji-символы в print() в .py файлах
-grep -rnE "print.*[\U0001F300-\U0001F9FF✅❌⚠🎯🔥]" --include="*.py" .
-# Должен быть пустой результат
-```
+Автоматическая проверка через `scripts/pre_commit_check.py` — детектирует non-ASCII символы в print-statements (см. AP-09 infrastructure).
 
 См. **L-04** для полного обоснования.
 
@@ -317,26 +311,18 @@ Claude Code в процессе выполнения TASK добавляет:
 - **Загрязнение git-истории** — даже если заменить позже, коммит с токеном останется в истории (L-11)
 
 **Реальный случай (когда встречалось):**
-2026-04-18, TASK_01 (установка когнитивной системы):
+2026-04-18, TASK_01 и TASK_02 (установка когнитивной системы):
 
-Архитектор использовал реальный (отозванный) classic токен `ghp_...` как пример в L-05 и AP-05 для наглядности "вот так выглядел случай утечки". При первом `git push` на ветку TASK_01 GitHub push protection заблокировал операцию с ошибкой:
-```
-remote: error: GH013: Repository rule violations found
-remote: - Push cannot contain secrets
-remote:   locations:
-remote:     - commit: 8d3d...
-remote:       path: LESSONS_LEARNED.md:132
-remote:       path: ANTIPATTERNS.md:198
-```
+В обоих задачах архитектор использовал реальный (отозванный) classic токен как пример в L-05, AP-05 и AP-08 для наглядности "вот так выглядел случай утечки". При каждой попытке push GitHub push protection блокировал операцию.
 
-Исправление заняло дополнительные 10 минут: заменить токен на REDACTED-маркер, `git commit --amend`, `git push --force-with-lease` (L-11).
+Инцидент повторялся 3 раза за один день, каждый раз блокируя push в разных местах документации. См. также **L-14** (мета-урок про рекурсивную природу ошибки).
 
 **Правильная альтернатива:**
 Использовать явные маркеры которые синтаксически не могут быть валидным токеном:
 
 ```
 # Плохо (даже если отозван):
-GITHUB_TOKEN=ghp_[REAL_TOKEN_PATTERN_36_CHARS_WOULD_BE_HERE]
+GITHUB_TOKEN=ghp_[REAL_TOKEN_PATTERN_WOULD_BE_HERE]
 
 # Хорошо:
 GITHUB_TOKEN=ghp_REDACTED_CLASSIC_TOKEN_WAS_HERE_DO_NOT_RESTORE
@@ -349,6 +335,8 @@ ANTHROPIC_API_KEY=sk-ant-REDACTED-EXAMPLE
 - Сигнал читателю что значение вымышленное
 - Сигнал детекторам секретов что это не утечка
 - Не триггерят push protection
+
+Альтернатива через квадратные скобки — `ghp_[TOKEN_WOULD_BE_HERE]` — тоже работает, так как токен с `[` не может быть валидным.
 
 **Как проверить что я не допускаю:**
 Перед коммитом документации/TASK-файлов/комментариев:
@@ -365,7 +353,69 @@ grep -rnE "(ghp_[a-zA-Z0-9]{36}|sk-[a-zA-Z0-9]{48})" --include="*.py" .
 
 Если что-то найдено — это либо реальный секрет (срочно revoke и замени на REDACTED), либо уже REDACTED-маркер случайно совпал с regex (посмотри — если содержит `REDACTED`/`EXAMPLE`/`FAKE` — это ок).
 
-См. **L-10, L-11** для полного обоснования.
+**Автоматическая защита:** `scripts/pre_commit_check.py` + git hook блокируют commit если обнаруживают паттерн (см. AP-09).
+
+См. **L-10, L-11, L-14** для полного обоснования.
+
+---
+
+## AP-09: `git push --force` или `--force-with-lease` в main / публичной ветке
+
+**Категория:** workflow
+**Severity:** CRITICAL
+
+**Что это:**
+Команды перезаписывающие историю в **публично доступной** ветке:
+```bash
+git push origin main --force
+git push origin main --force-with-lease
+git push origin main -f
+```
+
+Отдельный подвид: `git reset --hard` на ветке с последующим force-push.
+
+**Почему это вредно:**
+- **Перезаписывает историю которую уже видели другие** — все кто клонировал/fetch'ил репо, получают расхождение между их локальной копией и remote
+- **Ломает GitHub Actions, CI, security scanning** — отчёты ссылаются на коммиты которых больше нет
+- **Повреждает secret scanning audit trail** — GitHub учитывает историю коммитов для обнаружения утечек
+- **В командной работе — катастрофично** — коллеги теряют свои commits, если у них были свежие local commits не слитые в main
+- **Потеря данных** — любые reflog-записи у "потерявших" коммиты коллег исчезают при следующем gc
+
+**В личной ветке (своя feature-branch) force push допустим** когда:
+- Ветка точно не используется кем-то ещё (одинокая feature branch)
+- Нужно переписать историю перед созданием PR (amend, rebase, squash)
+- Используется `--force-with-lease` (безопаснее простого `--force`)
+
+**Main, master, develop, release — никогда не force push, даже --with-lease.**
+
+**Реальный случай (когда встречалось):**
+2026-04-18, TASK_02:
+Архитектор при написании инструкции Claude Code по исправлению push protection в первой итерации рассматривал вариант "rebase + force push". Правильно опознал что force push в main нельзя, предложил альтернативу `soft reset + single commit` (L-16), которая не требует force push.
+
+Но в некоторых промежуточных формулировках архитектора упоминалось `--force-with-lease` без явного уточнения "только в личной ветке". Потенциальная ошибка если бы Claude Code буквально применил к `main`.
+
+**Правильная альтернатива:**
+
+Если история main нуждается в изменении:
+1. **Коммит с токеном в main** → `git revert <bad-commit>` (создаёт новый коммит отменяющий плохой, не перезаписывает историю)
+2. **Секрет попал в main и нужно его удалить из истории** → git filter-repo или BFG Repo Cleaner + координация (§ 3), на уровне организации GitHub
+3. **Не нужны rewrite'ы в main** — значит надо "чинить вперёд" через обычные коммиты
+
+Для личных веток:
+- `git push origin my-feature-branch --force-with-lease` — ok
+- `git push origin my-feature-branch --force` — рисково (без `--with-lease` перезапишет даже если кто-то запушил новое), использовать только если уверен
+- Никогда не force push в чужие feature-ветки без согласования
+
+**Как проверить что я не допускаю:**
+
+Перед каждым `git push` с флагом `--force` или `--force-with-lease`:
+1. Выполнить `git rev-parse --abbrev-ref HEAD` — какая ветка
+2. Если это `main`, `master`, `develop`, `release/*` → **СТОП** (§ 3). Не force push.
+3. Если это личная ветка — force push допустим если согласован с контекстом задачи
+
+Автоматическая проверка: `scripts/pre_commit_check.py` не блокирует push (он работает на pre-commit, не pre-push), но в CLAUDE.md § 11 добавлено явное правило + перед любой force-операцией Claude Code обязан делать диагностику.
+
+См. **L-11, L-16** для контекста.
 
 ---
 
@@ -373,7 +423,7 @@ grep -rnE "(ghp_[a-zA-Z0-9]{36}|sk-[a-zA-Z0-9]{48})" --include="*.py" .
 
 | Severity | Антипаттерны |
 |---|---|
-| CRITICAL | AP-02 (stub данные), AP-04 (ABORT в Fast Lane), AP-05 (секреты) |
+| CRITICAL | AP-02 (stub данные), AP-04 (ABORT в Fast Lane), AP-05 (секреты), AP-09 (force push в main) |
 | HIGH | AP-01 (hardcoded пути), AP-03 (голый except), AP-07 (самовольный функционал), AP-08 (реальные секреты в документации) |
 | MEDIUM | AP-06 (emoji в print) |
 
@@ -384,7 +434,7 @@ grep -rnE "(ghp_[a-zA-Z0-9]{36}|sk-[a-zA-Z0-9]{48})" --include="*.py" .
 | architecture | AP-02, AP-04 |
 | code-quality | AP-01, AP-03, AP-06 |
 | security | AP-05, AP-08 |
-| workflow | AP-07 |
+| workflow | AP-07, AP-09 |
 
 ---
 
@@ -394,3 +444,4 @@ grep -rnE "(ghp_[a-zA-Z0-9]{36}|sk-[a-zA-Z0-9]{48})" --include="*.py" .
 |---|---|---|
 | 2026-04-18 | v1.0 | Initial — 7 антипаттернов AP-01..AP-07 из первого ревью |
 | 2026-04-18 | v1.1 | +AP-08 (реальные секреты в документации) по итогам TASK_01 — GitHub push protection инцидент |
+| 2026-04-18 | v1.2 | +AP-09 (force push в main) по итогам TASK_02 — связка с L-11, L-16 |
