@@ -5,7 +5,7 @@
 > Пополняется **только через TASK от архитектора** — сам не добавляй.
 >
 > Формат одного антипаттерна описан в CLAUDE.md § 28.
-> Текущее количество антипаттернов: **9** (AP-01 ... AP-09).
+> Текущее количество антипаттернов: **10** (AP-01 ... AP-10).
 
 ---
 
@@ -41,7 +41,7 @@ grep -rn "/Users/" MARKET_MIND/ENGINE/ 2>/dev/null
 # Все три должны вернуть пустой результат
 ```
 
-Автоматическая проверка: `scripts/pre_commit_check.py` включает detection hardcoded путей (см. AP-09).
+Автоматическая проверка: `scripts/pre_commit_check.py` включает detection hardcoded путей (см. AP-09 infrastructure).
 
 ---
 
@@ -419,12 +419,96 @@ git push origin main -f
 
 ---
 
+## AP-10: Ad-hoc диагностические команды вне scope TASK
+
+**Категория:** workflow
+**Severity:** HIGH
+
+**Что это:**
+Claude Code выполняет inline-команды которые **не описаны в TASK**, но выглядят безобидно или полезно:
+
+```bash
+# Типичные примеры AP-10:
+python -c "from module import X; print(X.attribute)"        # проверка API
+echo 'import re; print(re.search(...))' | python             # проверка regex
+grep -c "pattern" file.py                                     # ad-hoc поиск
+python scripts/something.py --debug                           # "просто посмотреть"
+```
+
+Эти команды:
+- Не входят в явные шаги TASK
+- Обычно запускаются "чтобы быстро проверить работает ли"
+- Могут содержать баги (неправильный API, устаревшие константы)
+- Не воспроизводимы (не в git, не в test suite)
+
+**Почему это вредно:**
+- **Накопление undocumented операций** — chat history забивается inline-командами без истории в git
+- **Ложные результаты** — ad-hoc тесты часто содержат свои баги (см. **L-19**: Claude Code написал `result.success` вместо правильного `result.ok` и получил бы `AttributeError` на корректном коде)
+- **Erosion of discipline** — "ещё одна команда, она же безобидная" превращается в устойчивый паттерн нарушения § 1-2 CLAUDE.md
+- **Расхождение между замыслом и исполнением** — архитектор не знает какие inline-команды запускались, не может учесть их результаты в следующих шагах
+- **Потенциальная security уязвимость** — некоторые inline-формы с escaped quotes и newlines триггерят security warnings среды (см. **L-20**)
+
+**Реальный случай (когда встречалось):**
+2026-04-18, несколько попыток за один день:
+
+**Случай 1 (TASK_02.5 smoke test):**
+После того как hook не заблокировал нарушение в первый раз, Claude Code попытался:
+```bash
+echo 'import re; print(re.search(r"""["\x27](?:[A-Z]:\\\\|[A-Z]:/)""", """LOG = r"C:\CODE\MARKET ANALYSIS\logs\""""))' | python
+```
+Среда выдала security warning "Newline followed by # inside a quoted argument can hide arguments from path validation". Архитектор отклонил.
+
+**Случай 2 (тот же smoke test):**
+```bash
+grep -c "\[\\\\\\\\\\\/" scripts/pre_commit_check.py
+```
+Ad-hoc поиск regex в файле. Архитектор отклонил.
+
+**Случай 3 (TASK_03 cleanup, обновление PATTERNS.md):**
+```python
+python -c "
+from MARKET_MIND.ENGINE.schema_validator import SchemaValidator
+validator = SchemaValidator()
+pattern = {...}
+result = validator.validate(pattern, 'pattern')
+print(f'Example validation success: {result.success}')  # BUG: должен быть result.ok
+"
+```
+Архитектор отклонил. Как выяснилось, в этом тесте был **баг в API** (`result.success` вместо `result.ok`), что означало бы ложную панику при запуске.
+
+**Правильная альтернатива:**
+Три варианта когда возникло желание "проверить":
+
+1. **Проверить в TASK** — есть ли явный шаг проверки? Если да — использовать только его команды
+2. **Запустить существующий test suite** — `python MARKET_MIND/tests/test_schema_validator.py` (или аналог). Эти тесты в git, проверены, с правильным API
+3. **§ 3 (СТОП)** — сообщить архитектору что хочешь проверить и почему. Архитектор либо добавит шаг, либо скажет "переходи к коммиту"
+
+Никаких `python -c "..."`, `echo | python`, изолированных `grep` для "просто посмотреть".
+
+**Как проверить что я не допускаю:**
+
+**Для Claude Code:**
+Перед выполнением любой inline-команды (особенно `python -c`, `echo | python`, изолированный `grep`):
+1. Эта команда явно прописана в TASK? → OK
+2. Это запуск existing test suite (`python tests/test_*.py`)? → OK
+3. Это запуск production скрипта из scripts/ (`python scripts/verify_*.py`, `python scripts/pre_commit_check.py`)? → OK
+4. Иначе → § 3 (не выполнять)
+
+**Для архитектора (превентивно):**
+Если в TASK есть операции которые реально нужно проверить — добавить явные диагностические шаги с точными командами. Не оставлять "пустых мест".
+
+Автоматическая проверка: не существует детектора ad-hoc команд на уровне hook (они не меняют файлы), поэтому этот антипаттерн контролируется дисциплиной Claude Code через § 3 и ревью архитектора одобрений команд.
+
+См. **L-18, L-19, L-20** для полного обоснования.
+
+---
+
 ## Индекс по severity
 
 | Severity | Антипаттерны |
 |---|---|
 | CRITICAL | AP-02 (stub данные), AP-04 (ABORT в Fast Lane), AP-05 (секреты), AP-09 (force push в main) |
-| HIGH | AP-01 (hardcoded пути), AP-03 (голый except), AP-07 (самовольный функционал), AP-08 (реальные секреты в документации) |
+| HIGH | AP-01 (hardcoded пути), AP-03 (голый except), AP-07 (самовольный функционал), AP-08 (реальные секреты в документации), AP-10 (ad-hoc диагностика) |
 | MEDIUM | AP-06 (emoji в print) |
 
 ## Индекс по категориям
@@ -434,7 +518,7 @@ git push origin main -f
 | architecture | AP-02, AP-04 |
 | code-quality | AP-01, AP-03, AP-06 |
 | security | AP-05, AP-08 |
-| workflow | AP-07, AP-09 |
+| workflow | AP-07, AP-09, AP-10 |
 
 ---
 
@@ -445,3 +529,4 @@ git push origin main -f
 | 2026-04-18 | v1.0 | Initial — 7 антипаттернов AP-01..AP-07 из первого ревью |
 | 2026-04-18 | v1.1 | +AP-08 (реальные секреты в документации) по итогам TASK_01 — GitHub push protection инцидент |
 | 2026-04-18 | v1.2 | +AP-09 (force push в main) по итогам TASK_02 — связка с L-11, L-16 |
+| 2026-04-18 | v1.3 | +AP-10 (ad-hoc диагностика) по итогам TASK_02.5 и TASK_03 — связка с L-18, L-19, L-20 |
