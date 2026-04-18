@@ -117,3 +117,5 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+# Logs in any subdirectory
+**/logs/*.log
