@@ -1,8 +1,8 @@
 {
   "initialize_system": {
-    "status": "needs_rebuild",
+    "status": "ready",
     "updated_at": "2026-04-18",
-    "notes": "Task 00 v2: только 5 из 8 слоёв, LAYER_H неправильное имя, нет подпапок — будет пересобран в Task 01 v2"
+    "notes": "Task 02: пересобран с нуля. Идемпотентно создаёт все 36 канонических директорий согласно TZ V10.0-r1 § 1.2. Использует Path(__file__).resolve() (P-01, L-03). verify_infrastructure.py [PASS]."
   },
   "schema_layer": {
     "status": "needs_rewrite",
