@@ -74,8 +74,10 @@ SAFE_MARKERS: list[str] = [
 
 # === ДЕТЕКТОРЫ HARDCODED ПУТЕЙ (AP-01) ===
 HARDCODED_PATH_PATTERNS: list[tuple[str, str]] = [
-    ("Windows path C:\\", r'["\'](?:[A-Z]:\\\\|[A-Z]:/)'),
-    ("Linux absolute path", r'["\']/(?:home|Users|opt|etc|var)/'),
+    # Windows absolute path: "C:\..." or "C:/..." — один или два backslash
+    ("Windows path with drive letter", r'["\'][A-Za-z]:[\\\/]'),
+    # Linux/Mac absolute paths in string literals
+    ("Unix absolute path", r'["\']/(?:home|Users|opt|etc|var)/'),
 ]
 
 
@@ -187,8 +189,12 @@ def check_hardcoded_paths(file_path: Path, content: str) -> list[str]:
         stripped = line.strip()
         if stripped.startswith("#") or stripped.startswith('"""') or stripped.startswith("'''"):
             continue
-        # Пропускаем строки в которых явно пример (# applies, # example, etc.)
-        if "example" in line.lower() or "пример" in line.lower():
+        # Пропускаем строки-комментарии начинающиеся с # и явно помеченные как "пример"
+        if stripped.startswith("#") and (
+            "example:" in stripped.lower()
+            or "пример:" in stripped.lower()
+            or "e.g." in stripped.lower()
+        ):
             continue
         for pattern_name, regex in HARDCODED_PATH_PATTERNS:
             if re.search(regex, line):
