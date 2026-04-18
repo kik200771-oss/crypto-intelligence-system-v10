@@ -24,7 +24,8 @@
       "Bash(findstr /C:\"\\\\\\\\`\" CLAUDE.md)",
       "Bash(git checkout *)",
       "Bash(xargs rm *)",
-      "Bash(python scripts/verify_cleanup.py)"
+      "Bash(python scripts/verify_cleanup.py)",
+      "Bash(git stash *)"
     ]
   }
 }
