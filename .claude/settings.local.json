@@ -49,7 +49,8 @@
       "Bash(grep -E \"^main\\\\.py$|^dashboard\\\\.py$|^cis-cli\\\\.py$\")",
       "Bash(find MARKET_MIND/LAYER_*/ -name \".gitkeep\")",
       "Bash(python MARKET_MIND/ENGINE/initialize_system.py)",
-      "Bash(python scripts/verify_infrastructure.py)"
+      "Bash(python scripts/verify_infrastructure.py)",
+      "Bash(python *)"
     ]
   }
 }
