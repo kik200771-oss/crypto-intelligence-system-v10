@@ -262,27 +262,38 @@ sys.path.insert(0, str(BASE))
 from MARKET_MIND.ENGINE.schema_validator import SchemaValidator
 
 
-def test_valid_candle():
+def test_valid_pattern():
     validator = SchemaValidator()
-    candle = {"symbol": "BTCUSDT", "timestamp": 1700000000, ...}
-    ok, errors = validator.validate(candle, "ohlcv_candle")
-    assert ok, f"Expected valid, got errors: {errors}"
-    print("[OK] test_valid_candle")
+    pattern = {
+        "id": "test_pattern_001",
+        "name": "Test RSI Pattern",
+        "logic_dsl": "RSI(14) < 30",
+        "symbol": "BTCUSDT",
+        "timeframe": "1h",
+        "status": "testing",
+        "confidence_point": 0.75,
+        "evidence_grade": "B",
+        "created_at": "2026-04-18T23:00:00Z",
+        "last_updated": "2026-04-18T23:00:00Z"
+    }
+    result = validator.validate(pattern, "pattern")
+    assert result.success, f"Expected valid, got errors: {result.errors}"
+    print("[OK] test_valid_pattern")
 
 
-def test_invalid_candle():
+def test_invalid_pattern():
     validator = SchemaValidator()
-    bad = {"symbol": "BTCUSDT", "open": -1}
-    ok, errors = validator.validate(bad, "ohlcv_candle")
-    assert not ok, "Expected invalid candle to fail"
-    assert len(errors) > 0, "Expected non-empty errors list"
-    print("[OK] test_invalid_candle")
+    bad = {"id": "test_bad", "status": "invalid_status"}  # missing required fields
+    result = validator.validate(bad, "pattern")
+    assert not result.success, "Expected invalid pattern to fail"
+    assert len(result.errors) > 0, "Expected non-empty errors list"
+    print("[OK] test_invalid_pattern")
 
 
 if __name__ == "__main__":
     try:
-        test_valid_candle()
-        test_invalid_candle()
+        test_valid_pattern()
+        test_invalid_pattern()
         print("\n[PASS] all tests")
     except AssertionError as e:
         print(f"\n[FAIL] {e}")
