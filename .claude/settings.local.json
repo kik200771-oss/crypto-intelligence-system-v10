@@ -25,7 +25,31 @@
       "Bash(git checkout *)",
       "Bash(xargs rm *)",
       "Bash(python scripts/verify_cleanup.py)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(git pull *)",
+      "Bash(findstr /C:\"§ 28. Как работают когнитивные файлы\" CLAUDE.md)",
+      "Bash(findstr /C:\"СТРУКТУРА КОМАНДЫ И РОЛИ\" CLAUDE.md)",
+      "Bash(findstr /C:\"LESSONS_LEARNED.md\" CLAUDE.md)",
+      "Bash(findstr /C:\"LESSONS_LEARNED\" CLAUDE.md)",
+      "Bash(findstr /C:\"PATTERNS.md\" CLAUDE.md)",
+      "Bash(findstr /C:\"ANTIPATTERNS.md\" CLAUDE.md)",
+      "Bash(dir LESSONS_LEARNED.md PATTERNS.md ANTIPATTERNS.md)",
+      "Bash(findstr /C:\"L-01:\" LESSONS_LEARNED.md)",
+      "Bash(git check-ignore *)",
+      "Bash(python scripts/verify_cognitive_foundation.py)",
+      "Bash(git merge *)",
+      "Bash(findstr /s /n /c:\"ghp_JdCj\" *.md)",
+      "Bash(git branch *)",
+      "Bash(git mv *)",
+      "Bash(git fetch *)",
+      "Bash(dir /B main.py dashboard.py cis-cli.py)",
+      "Bash(dir /B LESSONS_LEARNED.md PATTERNS.md ANTIPATTERNS.md)",
+      "Bash(dir /B src ENGINE HISTORY config)",
+      "Bash(git ls-tree *)",
+      "Bash(grep -E \"^main\\\\.py$|^dashboard\\\\.py$|^cis-cli\\\\.py$\")",
+      "Bash(find MARKET_MIND/LAYER_*/ -name \".gitkeep\")",
+      "Bash(python MARKET_MIND/ENGINE/initialize_system.py)",
+      "Bash(python scripts/verify_infrastructure.py)"
     ]
   }
 }
