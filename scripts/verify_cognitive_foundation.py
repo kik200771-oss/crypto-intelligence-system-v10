@@ -93,24 +93,32 @@ for s in v4_scripts:
     if not path.is_file():
         errors.append(f"Missing v4 script: {s}")
 
-# v4: проверка LESSONS_LEARNED v1.2
+# v4: проверка LESSONS_LEARNED v1.2 + v1.3
 lessons_path = ROOT / "LESSONS_LEARNED.md"
 if lessons_path.exists():
     lessons_content = lessons_path.read_text(encoding="utf-8")
+    # v1.2 уроки
     for new_lesson in ("## L-14:", "## L-15:", "## L-16:"):
         if new_lesson not in lessons_content:
             errors.append(f"LESSONS_LEARNED.md missing v1.2 entry: {new_lesson}")
-    if "v1.2" not in lessons_content:
-        errors.append("LESSONS_LEARNED.md missing v1.2 marker")
+    # v1.3 уроки (новые из TASK_03)
+    for new_lesson in ("## L-17:", "## L-18:", "## L-19:", "## L-20:"):
+        if new_lesson not in lessons_content:
+            errors.append(f"LESSONS_LEARNED.md missing v1.3 entry: {new_lesson}")
+    # Должна быть последняя версия
+    if "v1.3" not in lessons_content:
+        errors.append("LESSONS_LEARNED.md missing v1.3 marker")
 
-# v4: проверка ANTIPATTERNS v1.2
+# v4: проверка ANTIPATTERNS v1.2 + v1.3
 antipatterns_path = ROOT / "ANTIPATTERNS.md"
 if antipatterns_path.exists():
     ap_content = antipatterns_path.read_text(encoding="utf-8")
     if "## AP-09:" not in ap_content:
         errors.append("ANTIPATTERNS.md missing AP-09")
-    if "v1.2" not in ap_content:
-        errors.append("ANTIPATTERNS.md missing v1.2 marker")
+    if "## AP-10:" not in ap_content:
+        errors.append("ANTIPATTERNS.md missing AP-10")
+    if "v1.3" not in ap_content:
+        errors.append("ANTIPATTERNS.md missing v1.3 marker")
 
 # Финальный результат
 if errors:
