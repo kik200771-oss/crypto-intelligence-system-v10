@@ -43,6 +43,11 @@ if claude.exists():
         "§ 30. Источники правды для новой сессии",
         "Запрет force push в main",
         "pre_commit_check.py",
+        # v5 markers (new from TASK_04.6):
+        "§ 31. Observability channels",
+        "Reflection Block",
+        "Pre-task Analysis",
+        "31 параграфа",
     ]
     for m in markers:
         if m not in content:
