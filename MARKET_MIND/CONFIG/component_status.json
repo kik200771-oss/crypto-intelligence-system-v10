@@ -10,9 +10,9 @@
     "notes": "Task 03: Schema Layer V2 completed. 6 canonical schemas (pattern, prediction, experiment, hypothesis, negative, source) with V9.0/V10.0 fields per TZ § 1.8. schema_validator.py rewritten with ValidationResult API, graceful degradation (L-05), snapshot ID generation. Tests 17/17 [PASS]."
   },
   "data_quality_gates": {
-    "status": "needs_rewrite",
-    "updated_at": "2026-04-18",
-    "notes": "Task 00 v2: Gate 6 реализован как Staleness вместо Market Integrity (wash trading) — будет переписан в Task 02b"
+    "status": "ready",
+    "updated_at": "2026-04-19",
+    "notes": "Task 04: Переписан с нуля как data_quality_monitor.py. 6 Gates согласно ТЗ § 1881-1902: corruption/block, gaps/warn, outliers/degrade, cross-source/degrade, volume/degrade, wash_trading/degrade. Degraded mode rule при ≥2 degrade. Тесты 27/27 [PASS]. Z-score threshold 3.0 (математическое ограничение малой выборки)."
   },
   "context_orchestrator": {
     "status": "not_started",
