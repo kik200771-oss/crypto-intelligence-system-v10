@@ -5,7 +5,7 @@
 > Пополняется **только через TASK от архитектора** — сам не добавляй.
 >
 > Формат одного урока описан в CLAUDE.md § 28.
-> Текущее количество уроков: **22** (L-01..L-23, L-12 skipped).
+> Текущее количество уроков: **24** (L-01..L-25, L-12 reserved).
 
 ---
 
@@ -955,6 +955,81 @@ fi
 
 ---
 
+## L-24: `git diff --cached` перед commit — обязательный checkpoint
+
+**Когда возникло:** TASK_05a review (2026-04-21)
+**Категория:** workflow
+
+**Симптом (что мы увидели):**
+Финальный § 9 отчёт Claude Code по TASK_05a содержал summary "COMPLETED ✅" с правильными хешами коммитов, но БЕЗ raw output команд промежуточных проверок (pre_commit_check, git diff --cached, git push output). Это создало ситуацию где архитектор не мог независимо подтвердить что именно попало в commit, и вынужден был полагаться на external channels (raw.github) для верификации — что привело к ложной тревоге из-за cache TTL (L-25).
+
+**Причина (почему так произошло):**
+В CLAUDE.md § 24 (Pre-commit checklist) упоминается `pre_commit_check.py` и ручная проверка, но нет явного требования **показать** содержимое staging архитектору перед commit. Claude Code добросовестно выполнял checks, но результаты не оказывались в отчёте как verifiable raw data.
+
+**Правильный подход:**
+Перед каждым `git commit` в multi-file TASK — обязательно выполнить и **включить в отчёт** raw output следующих команд:
+
+1. `git status` — показать список staged/unstaged/untracked
+2. `git diff --cached --stat` — сводка изменений по файлам (какие файлы и на сколько строк)
+3. `git diff --cached <path>` для КАЖДОГО critical config/code файла — полный diff, не fragment
+
+Особенно для configs (JSON, YAML) и schemas (которые могут быть "изменены но кажутся нетронутыми" если правки были в отдельной части файла).
+
+Эти выводы включаются в § 9 отчёт в секции "Commit verification" перед строкой `Commit: <hash>`.
+
+**Правило на будущее:**
+В multi-file TASK, особенно трогающих existing configs/schemas: перед `git commit` выполнить `git diff --cached --stat` + `git diff --cached <file>` для каждого critical файла. Эти raw outputs включить в финальный § 9 отчёт. Это позволяет архитектору **независимо подтвердить** содержимое staging до того как commit попадёт в main.
+
+**Применимость:** все multi-file TASK, особенно с правками existing configs или schemas. Не требуется для TASK которые только создают новые файлы (их содержимое показывается через `cat` после создания — P-05 style).
+
+---
+
+## L-25: raw.githubusercontent.com имеет cache TTL — не authoritative source в первые 15-30 минут после push
+
+**Когда возникло:** TASK_05a post-commit verification (2026-04-21)
+**Категория:** workflow
+
+**Симптом (что мы увидели):**
+Через ~40 минут после `git push origin main` с двумя коммитами TASK_05a, архитектор выполнил `web_fetch` на 5 raw.githubusercontent.com URL для независимой верификации содержимого main. Для двух config файлов (`timeframe_core.json`, `session_state.json`) raw.github показал **старое содержимое** без новых секций, которые реально были добавлены в коммит `e07e6a2`. Через несколько минут после остановки diagnostic cycle те же URL показали правильное содержимое — endpoint обновился.
+
+Архитектор на основе stale output объявил "catastrophic failure TASK_05a — Части 1-2 не попали в main", написал TASK_05a-fix (283 строки) с remediation planом. Часть 0 TASK_05a-fix (diagnostic `cat` на локальном диске) показала что файлы там правильные. Далее — противоречие `cat ok` + `git diff --cached empty` подтвердило что файлы УЖЕ в HEAD commit. Сергей открыл файлы в редакторе напрямую — абсолютный ground truth, полностью правильное содержимое.
+
+TASK_05a-fix отменён. Никаких реальных проблем с TASK_05a не было — `cat` и git show HEAD всё время показывали правильные файлы.
+
+**Причина (почему так произошло):**
+L-13 в LESSONS_LEARNED предупреждал:
+> "Raw-ссылки **менее** кэшированы чем рендер страницы GitHub UI (L-13) — обновляются в течение минут после push."
+
+Ключевое слово — **"менее"**, не **"не"**. Cache TTL для raw.githubusercontent.com endpoint может составлять 15-30+ минут для low-activity репо. "Менее кэшированы" было интерпретировано архитектором как "обновляются моментально", что неверно.
+
+Дополнительно: формирование catastrophic failure conclusion на основе **одного external channel** — антипаттерн. Должен быть cross-check через independent channel до remediation action.
+
+**Правильный подход:**
+Post-commit верификация commit через multiple channels в правильном приоритете:
+
+**Channel 1 (most authoritative — git local):**
+`git show HEAD:<path>` — показывает содержимое файла в последнем коммите. Независимо от working tree, независимо от remote cache. Single source of truth для "что именно в последнем коммите".
+
+**Channel 2 (absolute ground truth — Сергей):**
+Сергей открывает файл локально в редакторе и присылает содержимое. Полный bypass всех cache/interface/interpretation problems. Используется когда Channel 1 даёт противоречивые данные.
+
+**Channel 3 (supplementary — remote):**
+`web_fetch` на raw.githubusercontent.com. **НЕ использовать** как primary или single source в первые 15+ минут после push. Используется для cross-verification после паузы (TTL expiration).
+
+**При противоречии между Channel 1 и Channel 3:**
+- Это **ожидаемое** поведение в первые 15-30 минут после push
+- НЕ объявлять catastrophic failure
+- Подождать + повторить через 15-30 минут, или cross-check через Channel 2
+
+**Правило на будущее:**
+При post-commit верификации существующих файлов (а не просто новых) — **всегда сначала `git show HEAD:<path>`**, затем при желании cross-check через raw.github только через 15+ минут после push. Никогда не объявлять commit failure только на основании raw.github / web_fetch single channel в первые 30 минут после push.
+
+Для финального § 9 отчёта полезно включать `git show HEAD:<path>` для 1-2 critical файлов — это Canonical post-commit state который позже не зависит от cache.
+
+**Применимость:** все post-commit workflow, особенно когда commit трогает existing configs/schemas/documentation. Не требуется для коммитов добавляющих только новые файлы.
+
+---
+
 ## Индекс применимости
 
 | Тип задачи | Применимые уроки |
@@ -973,7 +1048,8 @@ fi
 | Написание security-related контента | L-14 |
 | Выполнение команд в Claude Code env | L-18, L-20, L-21, L-23 |
 | Cleanup / inspection канонических директорий | L-17 |
-| Составление § 9 отчётов | L-22 |
+| Составление § 9 отчётов с commit | L-22, L-24 |
+| Post-commit verification | L-13, L-25 |
 | Архитектор пишет команды bash | L-20, L-23 |
 
 ---
@@ -987,3 +1063,4 @@ fi
 | 2026-04-18 | v1.2 | +L-14 (рекурсивная ошибка AP-08), L-15 (git log перед amend), L-16 (soft reset как альтернатива rebase) по итогам TASK_02 |
 | 2026-04-18 | v1.3 | +L-17 (cleanup inspect internals), L-18 (ad-hoc диагностика = AP-07), L-19 (API mismatch в ad-hoc тестах), L-20 (security warnings от среды) по итогам TASK_03 и cleanup |
 | 2026-04-19 | v1.4 | +L-21 (debug_*.py = тот же AP-10 через отдельный файл), L-22 (номера уроков в отчётах — сверяться), L-23 (compound команды с redirection триггерят security warnings) по итогам TASK_04 |
+| 2026-04-21 | v1.5 | +L-24 (git diff --cached как обязательный checkpoint), +L-25 (raw.github cache TTL) по итогам TASK_05a review и incident с ложной тревогой "catastrophic failure" |
