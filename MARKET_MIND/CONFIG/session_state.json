@@ -5,5 +5,8 @@
   "last_forecast": null,
   "regime": "unknown",
   "silence_debt": 0,
-  "shock_score": 0.0
+  "shock_score": 0.0,
+  "summary": null,
+  "new_items": [],
+  "bias": null
 }
