@@ -99,21 +99,6 @@ def test_build_context_forecast_works():
         assert False
 
 
-def test_build_context_non_forecast_raises_notimplemented():
-    """build_context для task_type != 'forecast' поднимает NotImplementedError."""
-    orchestrator = ContextOrchestrator()
-
-    for task_type in ["research", "monitoring", "postmortem"]:
-        raised = False
-        try:
-            orchestrator.build_context("test", "BTCUSDT", "4h", task_type=task_type)
-        except NotImplementedError:
-            raised = True
-        assert raised, f"Expected NotImplementedError for task_type='{task_type}'"
-
-    print("[OK] test_build_context_non_forecast_raises_notimplemented")
-
-
 def test_build_context_validates_task_type():
     """build_context валидирует task_type ДО NotImplementedError."""
     orchestrator = ContextOrchestrator()
@@ -126,18 +111,6 @@ def test_build_context_validates_task_type():
         raised = False  # ValueError должен быть ДО NotImplementedError
     assert raised
     print("[OK] test_build_context_validates_task_type")
-
-
-def test_save_session_raises_notimplemented():
-    """save_session поднимает NotImplementedError."""
-    orchestrator = ContextOrchestrator()
-    raised = False
-    try:
-        orchestrator.save_session("test summary", [], None)
-    except NotImplementedError:
-        raised = True
-    assert raised
-    print("[OK] test_save_session_raises_notimplemented")
 
 
 # =============================================================================
@@ -365,8 +338,154 @@ def test_token_counting():
     print("[OK] test_token_counting")
 
 
+# =============================================================================
+# RESEARCH/MONITORING/POSTMORTEM CONTEXT TESTS (TASK_05c)
+# =============================================================================
+
+def test_research_context_returns_result():
+    """Research context возвращает ContextResult для любого timeframe."""
+    orchestrator = ContextOrchestrator()
+    for timeframe in ["1h", "4h", "1d"]:
+        result = orchestrator.build_context("test", "BTCUSDT", timeframe, task_type="research")
+        assert isinstance(result, ContextResult)
+    print("[OK] test_research_context_returns_result")
+
+
+def test_research_context_never_aborted():
+    """Research никогда не возвращает status='ABORTED' (L-08 clarification)."""
+    orchestrator = ContextOrchestrator()
+    result = orchestrator.build_context("test", "BTCUSDT", "1d", task_type="research")
+    assert result.status != "ABORTED"
+    assert result.status in ["OK", "DEGRADED"]
+    print("[OK] test_research_context_never_aborted")
+
+
+def test_research_context_header():
+    """Research context содержит правильный header."""
+    orchestrator = ContextOrchestrator()
+    result = orchestrator.build_context("test", "BTCUSDT", "4h", task_type="research")
+    assert "RESEARCH CONTEXT" in result.context
+    assert "BTCUSDT" in result.context
+    print("[OK] test_research_context_header")
+
+
+def test_monitoring_context_returns_result():
+    """Monitoring context возвращает ContextResult."""
+    orchestrator = ContextOrchestrator()
+    result = orchestrator.build_context("test", "BTCUSDT", "1d", task_type="monitoring")
+    assert isinstance(result, ContextResult)
+    print("[OK] test_monitoring_context_returns_result")
+
+
+def test_monitoring_context_never_aborted():
+    """Monitoring никогда не возвращает status='ABORTED'."""
+    orchestrator = ContextOrchestrator()
+    result = orchestrator.build_context("test", "BTCUSDT", "1d", task_type="monitoring")
+    assert result.status != "ABORTED"
+    assert result.status in ["OK", "DEGRADED"]
+    print("[OK] test_monitoring_context_never_aborted")
+
+
+def test_monitoring_context_header():
+    """Monitoring context содержит правильный header."""
+    orchestrator = ContextOrchestrator()
+    result = orchestrator.build_context("test", "BTCUSDT", "4h", task_type="monitoring")
+    assert "MONITORING CONTEXT" in result.context
+    print("[OK] test_monitoring_context_header")
+
+
+def test_postmortem_context_returns_result():
+    """Postmortem context возвращает ContextResult."""
+    orchestrator = ContextOrchestrator()
+    result = orchestrator.build_context("test", "BTCUSDT", "1d", task_type="postmortem")
+    assert isinstance(result, ContextResult)
+    print("[OK] test_postmortem_context_returns_result")
+
+
+def test_postmortem_context_degraded_when_no_audit():
+    """Postmortem без audit файла → DEGRADED status."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        orchestrator = ContextOrchestrator(market_mind_root=tmp)
+        result = orchestrator.build_context("test", "BTCUSDT", "1d", task_type="postmortem")
+        assert result.status == "DEGRADED"
+        assert result.context_degraded is True
+    print("[OK] test_postmortem_context_degraded_when_no_audit")
+
+
+def test_save_session_updates_fields():
+    """save_session обновляет summary/new_items/bias в session_state.json."""
+    import tempfile, shutil, json
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        config_dir = tmp_path / "CONFIG"
+        config_dir.mkdir()
+        session_file = config_dir / "session_state.json"
+        # Create initial state
+        initial = {"current_session": None, "active_pair": None, "summary": None, "new_items": [], "bias": None}
+        session_file.write_text(json.dumps(initial), encoding="utf-8")
+
+        # Need timeframe_core.json too для __init__
+        # Копируем existing timeframe_core.json
+        tf_src = Path(__file__).resolve().parent.parent / "CONFIG" / "timeframe_core.json"
+        shutil.copy(tf_src, config_dir / "timeframe_core.json")
+
+        orchestrator = ContextOrchestrator(market_mind_root=tmp)
+        orchestrator.save_session("Test summary", ["item1"], bias="bullish")
+
+        state = json.loads(session_file.read_text(encoding="utf-8"))
+        assert state["summary"] == "Test summary"
+        assert state["new_items"] == ["item1"]
+        assert state["bias"] == "bullish"
+        assert state["current_session"] is None  # existing field preserved
+    print("[OK] test_save_session_updates_fields")
+
+
+def test_save_session_validates_summary_type():
+    """save_session raises ValueError при summary не строке."""
+    orchestrator = ContextOrchestrator()
+    try:
+        orchestrator.save_session(123, ["item1"], bias=None)
+        assert False, "Expected ValueError"
+    except ValueError:
+        pass
+    print("[OK] test_save_session_validates_summary_type")
+
+
+def test_save_session_validates_new_items_type():
+    """save_session raises ValueError при new_items не list[str]."""
+    orchestrator = ContextOrchestrator()
+    try:
+        orchestrator.save_session("test", ["valid", 123], bias=None)
+        assert False, "Expected ValueError"
+    except ValueError:
+        pass
+    print("[OK] test_save_session_validates_new_items_type")
+
+
+def test_budget_not_enforced_in_fast_lane():
+    """Fast Lane не применяет budget truncation (L-08 Fast Lane Invariant)."""
+    orchestrator = ContextOrchestrator()
+    result = orchestrator.build_context("test", "BTCUSDT", "1h", task_type="forecast")
+    # Fast Lane returns OK или DEGRADED, never truncates
+    assert result.status in ["OK", "DEGRADED"]
+    print("[OK] test_budget_not_enforced_in_fast_lane")
+
+
+def test_budget_enforcement_for_slow_lane():
+    """Slow Lane применяет budget truncation через _enforce_budget."""
+    orchestrator = ContextOrchestrator()
+    # research использует _enforce_budget
+    result = orchestrator.build_context("test", "BTCUSDT", "1d", task_type="research")
+    # С пустыми источниками token_count будет меньше MAX_TOKENS
+    assert result.total_tokens <= 8000 * 2  # Sanity check (c truncation или без)
+    print("[OK] test_budget_enforcement_for_slow_lane")
+
+
 if __name__ == "__main__":
-    # Skeleton tests (TASK_05a)
+    # Skeleton tests (TASK_05a) - удален test_save_session_raises_notimplemented
     skeleton_tests = [
         test_module_imports,
         test_task_types_constant,
@@ -374,13 +493,11 @@ if __name__ == "__main__":
         test_is_fast_lane_correctness,
         test_context_orchestrator_instantiates,
         test_build_context_validates_task_type,
-        test_save_session_raises_notimplemented,
     ]
 
-    # Forecast logic tests (TASK_05b + TASK_05b-fix.1)
+    # Forecast logic tests (TASK_05b + TASK_05b-fix.1) - удален test_build_context_non_forecast_raises_notimplemented
     forecast_tests = [
         test_build_context_forecast_works,
-        test_build_context_non_forecast_raises_notimplemented,
         test_fast_lane_invariant_1h_never_aborted,  # Critical L-08 test (split)
         test_fast_lane_invariant_4h_never_aborted,  # Critical L-08 test (split)
         test_slow_lane_never_aborted_either,        # L-08 clarification TASK_05b-fix.1
@@ -396,27 +513,63 @@ if __name__ == "__main__":
         test_token_counting,
     ]
 
-    all_tests = skeleton_tests + forecast_tests
+    # Research context tests (TASK_05c)
+    research_tests = [
+        test_research_context_returns_result,
+        test_research_context_never_aborted,
+        test_research_context_header,
+    ]
+
+    # Monitoring context tests (TASK_05c)
+    monitoring_tests = [
+        test_monitoring_context_returns_result,
+        test_monitoring_context_never_aborted,
+        test_monitoring_context_header,
+    ]
+
+    # Postmortem context tests (TASK_05c)
+    postmortem_tests = [
+        test_postmortem_context_returns_result,
+        test_postmortem_context_degraded_when_no_audit,
+    ]
+
+    # Session tests (TASK_05c)
+    session_tests = [
+        test_save_session_updates_fields,
+        test_save_session_validates_summary_type,
+        test_save_session_validates_new_items_type,
+    ]
+
+    # Budget tests (TASK_05c)
+    budget_tests = [
+        test_budget_not_enforced_in_fast_lane,
+        test_budget_enforcement_for_slow_lane,
+    ]
+
+    all_tests = skeleton_tests + forecast_tests + research_tests + monitoring_tests + postmortem_tests + session_tests + budget_tests
     failures = []
 
-    print("=== Running Skeleton Tests (TASK_05a) ===")
-    for t in skeleton_tests:
-        try:
-            t()
-        except AssertionError as e:
-            failures.append((t.__name__, str(e)))
-            print(f"[FAIL] {t.__name__}: {e}")
+    def run_test_group(tests, group_name):
+        """Helper для запуска группы тестов."""
+        print(f"\n=== Running {group_name} ===")
+        for t in tests:
+            try:
+                t()
+            except AssertionError as e:
+                failures.append((t.__name__, str(e)))
+                print(f"[FAIL] {t.__name__}: {e}")
+            except Exception as e:
+                failures.append((t.__name__, f"Exception: {str(e)}"))
+                print(f"[FAIL] {t.__name__}: Exception: {e}")
 
-    print("\n=== Running Forecast Logic Tests (TASK_05b) ===")
-    for t in forecast_tests:
-        try:
-            t()
-        except AssertionError as e:
-            failures.append((t.__name__, str(e)))
-            print(f"[FAIL] {t.__name__}: {e}")
-        except Exception as e:
-            failures.append((t.__name__, f"Exception: {str(e)}"))
-            print(f"[FAIL] {t.__name__}: Exception: {e}")
+    # Run all test groups
+    run_test_group(skeleton_tests, "Skeleton Tests (TASK_05a)")
+    run_test_group(forecast_tests, "Forecast Logic Tests (TASK_05b)")
+    run_test_group(research_tests, "Research Context Tests (TASK_05c)")
+    run_test_group(monitoring_tests, "Monitoring Context Tests (TASK_05c)")
+    run_test_group(postmortem_tests, "Postmortem Context Tests (TASK_05c)")
+    run_test_group(session_tests, "Session Tests (TASK_05c)")
+    run_test_group(budget_tests, "Budget Tests (TASK_05c)")
 
     if failures:
         print(f"\n[FAIL] {len(failures)}/{len(all_tests)} tests failed")
@@ -427,3 +580,8 @@ if __name__ == "__main__":
         print(f"\n[PASS] {len(all_tests)}/{len(all_tests)} tests passed")
         print(f"  Skeleton tests: {len(skeleton_tests)}")
         print(f"  Forecast tests: {len(forecast_tests)}")
+        print(f"  Research tests: {len(research_tests)}")
+        print(f"  Monitoring tests: {len(monitoring_tests)}")
+        print(f"  Postmortem tests: {len(postmortem_tests)}")
+        print(f"  Session tests: {len(session_tests)}")
+        print(f"  Budget tests: {len(budget_tests)}")

@@ -15,9 +15,9 @@
     "notes": "Task 04: Переписан с нуля как data_quality_monitor.py. 6 Gates согласно ТЗ § 1881-1902: corruption/block, gaps/warn, outliers/degrade, cross-source/degrade, volume/degrade, wash_trading/degrade. Degraded mode rule при ≥2 degrade. Тесты 27/27 [PASS]. Z-score threshold 3.0 (математическое ограничение малой выборки)."
   },
   "context_orchestrator": {
-    "status": "not_started",
-    "updated_at": "2026-04-18",
-    "notes": "Task 00 v2: откачено — реализация не соответствовала ТЗ (Input Assembler вместо Context Orchestrator) — будет создан с нуля в Task 03 v2"
+    "status": "ready",
+    "updated_at": "2026-04-22",
+    "notes": "TASK_05a (skeleton) + TASK_05b (forecast logic) + TASK_05b-fix.1 (L-08 clarification) + TASK_05c (research/monitoring/postmortem + save_session + budget enforcement) — полная реализация. 33/33 tests passed. MDC 4/4 COMPLETE."
   },
   "streamlit_ui_basic": {
     "status": "not_started",

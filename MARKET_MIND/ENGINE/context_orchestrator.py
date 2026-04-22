@@ -155,15 +155,29 @@ class ContextOrchestrator:
         if not timeframe or not isinstance(timeframe, str):
             raise ValueError("timeframe must be non-empty string")
 
-        # TASK_05b: реализуем только forecast logic
+        # Диспетчер по task_type (TASK_05c: все 4 task_types)
         if task_type == "forecast":
             return self._build_forecast_context(symbol, timeframe)
+        elif task_type == "research":
+            return self._build_research_context(symbol, timeframe)
+        elif task_type == "monitoring":
+            return self._build_monitoring_context(symbol, timeframe)
+        elif task_type == "postmortem":
+            return self._build_postmortem_context(symbol, timeframe)
         else:
-            # research/monitoring/postmortem логика в TASK_05c
-            raise NotImplementedError(f"Context building for task_type '{task_type}' implemented in TASK_05c")
+            # task_type уже валидирован через TASK_TYPES frozenset выше — unreachable
+            raise ValueError(f"Unreachable: task_type {task_type} not in dispatcher")
 
     def save_session(self, summary: str, new_items: list[str], bias: str | None = None) -> None:
-        """Публичный API из ТЗ Задача 3."""
+        """
+        Публичный API из ТЗ Задача 3.
+
+        Raises:
+            ValueError: если summary не строка, new_items не list[str], или bias не str/None
+            FileNotFoundError: если session_state.json не существует
+            json.JSONDecodeError: если existing session_state.json невалидный JSON
+            OSError: если write failed (permission, disk full, etc.)
+        """
         if not isinstance(summary, str):
             raise ValueError("summary must be string")
 
@@ -173,7 +187,30 @@ class ContextOrchestrator:
         if bias is not None and not isinstance(bias, str):
             raise ValueError("bias must be string or None")
 
-        raise NotImplementedError("save_session logic implemented in TASK_05c")
+        session_file = self.market_mind_root / "CONFIG" / "session_state.json"
+
+        try:
+            # Прочитать existing state
+            content = session_file.read_text(encoding="utf-8")
+            state = json.loads(content)
+
+            # Обновить 3 поля (сохраняя всё остальное)
+            state["summary"] = summary
+            state["new_items"] = new_items
+            state["bias"] = bias
+
+            # Atomic write через temp + rename
+            temp_path = session_file.with_suffix('.json.tmp')
+            temp_content = json.dumps(state, ensure_ascii=False, indent=2)
+            temp_path.write_text(temp_content, encoding="utf-8")
+            temp_path.replace(session_file)
+
+            # Логирование
+            self.logger.info(f"Session state saved: summary length {len(summary)}, {len(new_items)} new items, bias={bias}")
+
+        except (OSError, json.JSONDecodeError) as e:
+            self.logger.error(f"save_session failed: {e}")
+            raise
 
     # =============================================================================
     # FORECAST CONTEXT LOGIC (TASK_05b)
@@ -605,6 +642,651 @@ class ContextOrchestrator:
             axm_result["axm_notes"].append(f"AXM Guard inner error: {str(e)}")
 
         return axm_result
+
+    def _enforce_budget(
+        self,
+        context_lines: list[str],
+        blocks_included: list[str],
+        blocks_dropped: list[str],
+        priority_order: list[str]
+    ) -> tuple[list[str], int, list[str], list[str]]:
+        """
+        Если total_tokens > MAX_TOKENS, удаляет блоки с lowest priority
+        (highest priority number) до fit в budget.
+
+        Returns: (modified_context_lines, final_token_count, updated_blocks_included, updated_blocks_dropped)
+        """
+        # Подсчитать текущие tokens
+        current_text = "\n".join(context_lines)
+        current_tokens = _count_tokens(current_text)
+
+        # Если в budget — return as-is
+        if current_tokens <= MAX_TOKENS:
+            return context_lines.copy(), current_tokens, blocks_included.copy(), blocks_dropped.copy()
+
+        # Копируем входные данные для модификации
+        modified_lines = context_lines.copy()
+        updated_included = blocks_included.copy()
+        updated_dropped = blocks_dropped.copy()
+
+        # Защита от infinite loop — максимум 10 итераций
+        max_iterations = 10
+        iteration = 0
+
+        while iteration < max_iterations:
+            # Идентифицировать блоки в context_lines
+            blocks_in_context = {}
+            i = 0
+            while i < len(modified_lines):
+                line = modified_lines[i].strip()
+                if line.startswith('[') and line.endswith(']'):
+                    block_name = line[1:-1].lower()  # Remove [ ]
+                    start_idx = i
+
+                    # Найти конец блока
+                    j = i + 1
+                    while j < len(modified_lines):
+                        next_line = modified_lines[j].strip()
+                        if next_line.startswith('[') and next_line.endswith(']'):
+                            break
+                        j += 1
+
+                    blocks_in_context[block_name] = (start_idx, j)
+                    i = j
+                else:
+                    i += 1
+
+            # Найти блок для удаления (последний в priority_order который присутствует)
+            block_to_remove = None
+            for block_name in reversed(priority_order):
+                if block_name.lower() in blocks_in_context:
+                    block_to_remove = block_name.lower()
+                    break
+
+            if block_to_remove is None:
+                # Нет блоков для удаления — выход
+                break
+
+            # Удалить блок из context_lines
+            start_idx, end_idx = blocks_in_context[block_to_remove]
+            modified_lines = modified_lines[:start_idx] + modified_lines[end_idx:]
+
+            # Обновить blocks_included и blocks_dropped
+            original_block_name = block_to_remove
+            for orig_name in blocks_included:
+                if orig_name.lower() == block_to_remove:
+                    original_block_name = orig_name
+                    break
+
+            if original_block_name in updated_included:
+                updated_included.remove(original_block_name)
+                updated_dropped.append(f"{original_block_name}:budget_exceeded")
+
+            # Проверить новый token count
+            new_text = "\n".join(modified_lines)
+            new_tokens = _count_tokens(new_text)
+
+            if new_tokens <= MAX_TOKENS:
+                return modified_lines, new_tokens, updated_included, updated_dropped
+
+            iteration += 1
+
+        # Если после max_iterations всё ещё превышен budget
+        final_text = "\n".join(modified_lines)
+        final_tokens = _count_tokens(final_text)
+
+        if final_tokens > MAX_TOKENS:
+            updated_dropped.append("budget_critical_exceeded")
+
+        return modified_lines, final_tokens, updated_included, updated_dropped
+
+    def _collect_audit_entries(self, symbol: str, timeframe: str) -> list[dict] | None:
+        """Читает audit entries из LAYER_F_FEEDBACK/predictions_history.json. Applies P-02 graceful degradation."""
+        # applies L-07 (no stub data), P-02 (graceful degradation)
+        audit_file = self.market_mind_root / "LAYER_F_FEEDBACK" / "predictions_history.json"
+
+        if not audit_file.exists():
+            self.logger.warning(f"Predictions history not found: {audit_file}")
+            return None
+
+        try:
+            content = audit_file.read_text(encoding="utf-8")
+            data = json.loads(content)
+
+            # Ожидаем list of dicts (история предсказаний)
+            if not isinstance(data, list):
+                self.logger.warning(f"Invalid predictions history format in {audit_file} - expected list")
+                return None
+
+            # Фильтрация по symbol/timeframe если указаны в entries
+            filtered_entries = []
+            for entry in data:
+                if not isinstance(entry, dict):
+                    continue
+
+                # Фильтруем по symbol и timeframe если поля есть
+                if "symbol" in entry and "timeframe" in entry:
+                    if entry["symbol"] == symbol and entry["timeframe"] == timeframe:
+                        filtered_entries.append(entry)
+                else:
+                    # Entry без symbol/timeframe полей - включаем в результат
+                    filtered_entries.append(entry)
+
+            if not filtered_entries:
+                return None
+
+            # Сортируем по timestamp, берём top 20 most recent
+            # Поддерживаем разные варианты timestamp полей
+            def get_timestamp(entry):
+                for ts_field in ["timestamp", "created_at", "prediction_time", "last_updated"]:
+                    if ts_field in entry and isinstance(entry[ts_field], (int, float)):
+                        return entry[ts_field]
+                return 0
+
+            filtered_entries.sort(key=get_timestamp, reverse=True)
+            return filtered_entries[:20]
+
+        except (json.JSONDecodeError, OSError) as e:
+            self.logger.error(f"Error reading predictions history {audit_file}: {e}")
+            return None
+
+    def _collect_drift_metrics(self, symbol: str, timeframe: str) -> dict | None:
+        """Читает drift metrics из LAYER_F_FEEDBACK/drift_log.json. Applies P-02 graceful degradation."""
+        # applies L-07 (no stub data), P-02 (graceful degradation)
+        drift_file = self.market_mind_root / "LAYER_F_FEEDBACK" / "drift_log.json"
+
+        if not drift_file.exists():
+            self.logger.warning(f"Drift log not found: {drift_file}")
+            return None
+
+        try:
+            content = drift_file.read_text(encoding="utf-8")
+            data = json.loads(content)
+
+            # Ожидаем структуру с drift metrics
+            if not isinstance(data, dict):
+                self.logger.warning(f"Invalid drift log format in {drift_file} - expected dict")
+                return None
+
+            # Фильтруем по symbol и timeframe если указаны
+            if "symbol" in data and "timeframe" in data:
+                if data["symbol"] != symbol or data["timeframe"] != timeframe:
+                    self.logger.warning(f"Drift log symbol/timeframe mismatch: expected {symbol}/{timeframe}")
+                    return None
+
+            # Minimal validation - требуются basic drift поля
+            if "drift_score" not in data and "drift_metrics" not in data:
+                self.logger.warning(f"Invalid drift log format - missing drift_score or drift_metrics")
+                return None
+
+            return data
+
+        except (json.JSONDecodeError, OSError) as e:
+            self.logger.error(f"Error reading drift log {drift_file}: {e}")
+            return None
+
+    def _collect_kb_excerpts(self, symbol: str, timeframe: str) -> list[dict] | None:
+        """Читает KB excerpts из LAYER_A_RESEARCH/kb/. Applies P-02 graceful degradation."""
+        # applies L-07 (no stub data), P-02 (graceful degradation)
+        kb_dir = self.market_mind_root / "LAYER_A_RESEARCH" / "kb"
+
+        if not kb_dir.exists():
+            self.logger.warning(f"KB directory not found: {kb_dir}")
+            return None
+
+        try:
+            excerpts = []
+            # Поддерживаем как .json, так и .md файлы
+            for kb_file in list(kb_dir.glob("*.json")) + list(kb_dir.glob("*.md")):
+                try:
+                    if kb_file.suffix == ".json":
+                        content = kb_file.read_text(encoding="utf-8")
+                        data = json.loads(content)
+
+                        # Фильтруем по symbol и timeframe если есть в metadata
+                        if isinstance(data, dict):
+                            if (data.get("symbol") == symbol and
+                                data.get("timeframe") == timeframe):
+                                excerpts.append(data)
+                            elif "symbol" not in data and "timeframe" not in data:
+                                # Generic KB entry без фильтрации
+                                excerpts.append(data)
+
+                    elif kb_file.suffix == ".md":
+                        # Простая markdown KB entry
+                        content = kb_file.read_text(encoding="utf-8")
+                        excerpt = {
+                            "id": kb_file.stem,
+                            "content": content[:500],  # Limit content size
+                            "file_type": "markdown",
+                            "last_updated": kb_file.stat().st_mtime
+                        }
+                        excerpts.append(excerpt)
+
+                except (json.JSONDecodeError, OSError) as e:
+                    self.logger.warning(f"Skipping invalid KB file {kb_file.name}: {e}")
+                    continue
+
+            # Сортируем по last_updated, берём top 10 most recent
+            if excerpts:
+                excerpts.sort(key=lambda x: x.get("last_updated", 0), reverse=True)
+                return excerpts[:10]
+            else:
+                return None
+
+        except Exception as e:
+            self.logger.error(f"Error reading KB excerpts from {kb_dir}: {e}")
+            return None
+
+    # =============================================================================
+    # RESEARCH/MONITORING/POSTMORTEM CONTEXT LOGIC (TASK_05c)
+    # =============================================================================
+
+    def _build_research_context(self, symbol: str, timeframe: str) -> ContextResult:
+        """
+        Context building для task_type='research'. Slow Lane only.
+        По ТЗ Задача 3: scope "KB + hypotheses".
+
+        Источники: validated patterns (hypotheses) + KB excerpts.
+        Всегда Slow Lane независимо от timeframe. Budget enforcement в Part 5.
+        """
+        start_time = time.time()
+        context_degraded = False
+        blocks_included = []
+        blocks_dropped = []
+
+        # Research context - всегда Slow Lane
+        is_fast = False  # research никогда не Fast Lane
+
+        # Получаем Slow Lane timeout из конфига
+        timeouts = self.config.get("context_orchestrator_timeouts", {})
+        total_timeout_ms = timeouts.get("slow_lane_total_ms", 30000)
+        total_timeout = total_timeout_ms / 1000.0
+
+        self.logger.info(f"Building research context for {symbol}/{timeframe}, "
+                        f"Slow Lane, timeout: {total_timeout}s")
+
+        # Источники для research: patterns (hypotheses) + kb_excerpts
+        research_sources = [
+            ("patterns", self._collect_validated_patterns),
+            ("kb_excerpts", self._collect_kb_excerpts)
+        ]
+
+        # Параллельный сбор с ThreadPoolExecutor (max_workers=2)
+        collected_data = {}
+
+        def collect_source(source_info):
+            source_name, collector_func = source_info
+            try:
+                data = collector_func(symbol, timeframe)
+                return source_name, data
+            except Exception as e:
+                self.logger.error(f"Error collecting {source_name}: {e}")
+                return source_name, None
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_to_source = {
+                executor.submit(collect_source, source_info): source_info[0]
+                for source_info in research_sources
+            }
+
+            for future in as_completed(future_to_source, timeout=total_timeout):
+                try:
+                    source_name, data = future.result()
+                    if data is not None:
+                        collected_data[source_name] = data
+                        blocks_included.append(source_name)
+                    else:
+                        blocks_dropped.append(source_name)
+                        context_degraded = True  # Любой отсутствующий источник → degraded
+
+                except Exception as e:
+                    source_name = future_to_source[future]
+                    self.logger.error(f"Future failed for {source_name}: {e}")
+                    blocks_dropped.append(source_name)
+                    context_degraded = True
+
+        # Build context string
+        context_lines = [
+            f"=== RESEARCH CONTEXT ({symbol}/{timeframe}) ===",
+            f"Task Type: research",
+            f"Fast Lane: {is_fast}",
+            f"Timestamp: {start_time}",
+            ""
+        ]
+
+        # Блоки в порядке: [PATTERNS], [KB_EXCERPTS], [MISSING SOURCES]
+        if "patterns" in collected_data:
+            patterns = collected_data["patterns"]
+            context_lines.append("[PATTERNS]")
+            if isinstance(patterns, list):
+                context_lines.append(f"  count: {len(patterns)}")
+                for i, pattern in enumerate(patterns[:3]):  # Limit to first 3
+                    if isinstance(pattern, dict):
+                        pattern_id = pattern.get("pattern_id", f"pattern_{i}")
+                        pattern_desc = pattern.get("description", "No description")[:80]
+                        context_lines.append(f"  [{i}] {pattern_id}: {pattern_desc}")
+            context_lines.append("")
+
+        if "kb_excerpts" in collected_data:
+            kb_excerpts = collected_data["kb_excerpts"]
+            context_lines.append("[KB_EXCERPTS]")
+            if isinstance(kb_excerpts, list):
+                context_lines.append(f"  count: {len(kb_excerpts)}")
+                for i, excerpt in enumerate(kb_excerpts[:3]):  # Limit to first 3
+                    if isinstance(excerpt, dict):
+                        excerpt_id = excerpt.get("id", f"excerpt_{i}")
+                        excerpt_content = excerpt.get("content", "No content")[:80]
+                        context_lines.append(f"  [{i}] {excerpt_id}: {excerpt_content}")
+            context_lines.append("")
+
+        if blocks_dropped:
+            context_lines.append("[MISSING SOURCES]")
+            for dropped in blocks_dropped:
+                context_lines.append(f"  - {dropped}")
+            context_lines.append("")
+
+        # Budget enforcement для research context
+        priority_order = ["patterns", "kb_excerpts"]  # patterns higher priority
+        context_lines, token_count, blocks_included, blocks_dropped = self._enforce_budget(
+            context_lines, blocks_included, blocks_dropped, priority_order
+        )
+        if any("budget_exceeded" in d for d in blocks_dropped):
+            context_degraded = True
+
+        context_text = "\n".join(context_lines)
+
+        # Status determination — applies L-08 clarification (никогда ABORTED)
+        if context_degraded:
+            status = "DEGRADED"
+        else:
+            status = "OK"
+
+        elapsed_time = time.time() - start_time
+        self.logger.info(f"Research context built in {elapsed_time:.2f}s, "
+                        f"status: {status}, tokens: {token_count}, "
+                        f"included: {len(blocks_included)}, dropped: {len(blocks_dropped)}")
+
+        return ContextResult(
+            context=context_text,
+            total_tokens=token_count,
+            blocks_included=blocks_included,
+            blocks_dropped=blocks_dropped,
+            context_degraded=context_degraded,
+            status=status
+        )
+
+    def _build_monitoring_context(self, symbol: str, timeframe: str) -> ContextResult:
+        """
+        Context building для task_type='monitoring'. Slow Lane only.
+        По ТЗ Задача 3: scope "health + drift + shock_score".
+
+        Источники: regime (health proxy), shock_score, drift_metrics.
+        Всегда Slow Lane. При shock_score > 0.25 добавляется [BRAKE_ALERT] блок.
+        """
+        start_time = time.time()
+        context_degraded = False
+        blocks_included = []
+        blocks_dropped = []
+
+        # Monitoring context - всегда Slow Lane
+        is_fast = False  # monitoring никогда не Fast Lane
+
+        # Получаем Slow Lane timeout из конфига
+        timeouts = self.config.get("context_orchestrator_timeouts", {})
+        total_timeout_ms = timeouts.get("slow_lane_total_ms", 30000)
+        total_timeout = total_timeout_ms / 1000.0
+
+        self.logger.info(f"Building monitoring context for {symbol}/{timeframe}, "
+                        f"Slow Lane, timeout: {total_timeout}s")
+
+        # Источники для monitoring: regime (health), shock_score, drift_metrics
+        monitoring_sources = [
+            ("regime", self._collect_regime_context),
+            ("drift_metrics", self._collect_drift_metrics)
+        ]
+
+        # Параллельный сбор с ThreadPoolExecutor (max_workers=3, но пока 2 + shock_score отдельно)
+        collected_data = {}
+
+        def collect_source(source_info):
+            source_name, collector_func = source_info
+            try:
+                data = collector_func(symbol, timeframe)
+                return source_name, data
+            except Exception as e:
+                self.logger.error(f"Error collecting {source_name}: {e}")
+                return source_name, None
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            # Сбор regime и drift_metrics параллельно
+            future_to_source = {
+                executor.submit(collect_source, source_info): source_info[0]
+                for source_info in monitoring_sources
+            }
+
+            # Добавляем shock_score сбор (используем существующий метод если есть, иначе заглушка)
+            def collect_shock_score():
+                # Пока нет _collect_shock_score метода - создаём minimal implementation
+                shock_file = self.market_mind_root / "LAYER_H_INFRA" / "shock_score.json"
+                if shock_file.exists():
+                    try:
+                        content = shock_file.read_text(encoding="utf-8")
+                        data = json.loads(content)
+                        if isinstance(data, dict) and "shock_score" in data:
+                            return data
+                    except Exception as e:
+                        self.logger.error(f"Error reading shock_score: {e}")
+                return None
+
+            shock_future = executor.submit(collect_shock_score)
+            future_to_source[shock_future] = "shock_score"
+
+            for future in as_completed(future_to_source, timeout=total_timeout):
+                try:
+                    source_name = future_to_source[future]
+                    if source_name == "shock_score":
+                        data = future.result()
+                    else:
+                        source_name, data = future.result()
+
+                    if data is not None:
+                        collected_data[source_name] = data
+                        blocks_included.append(source_name)
+                    else:
+                        blocks_dropped.append(source_name)
+                        context_degraded = True
+
+                except Exception as e:
+                    source_name = future_to_source[future]
+                    self.logger.error(f"Future failed for {source_name}: {e}")
+                    blocks_dropped.append(source_name)
+                    context_degraded = True
+
+        # Build context string
+        context_lines = [
+            f"=== MONITORING CONTEXT ({symbol}/{timeframe}) ===",
+            f"Task Type: monitoring",
+            f"Fast Lane: {is_fast}",
+            f"Timestamp: {start_time}",
+            ""
+        ]
+
+        # [BRAKE_ALERT] блок первый - только если shock_score > 0.25
+        shock_data = collected_data.get("shock_score")
+        shock_score_value = None
+        if isinstance(shock_data, dict):
+            shock_score_value = shock_data.get("shock_score")
+
+        if isinstance(shock_score_value, (int, float)) and shock_score_value > 0.25:
+            context_lines.append("[BRAKE_ALERT]")
+            context_lines.append(f"  shock_score: {shock_score_value}")
+            brake_level = "MEDIUM" if shock_score_value <= 0.5 else "HIGH" if shock_score_value <= 0.75 else "CRITICAL"
+            context_lines.append(f"  brake_level: {brake_level}")
+            context_lines.append(f"  rationale: shock_score exceeds monitoring threshold (0.25)")
+            context_lines.append("")
+
+        # Остальные блоки в порядке: [REGIME_HEALTH], [SHOCK_SCORE], [DRIFT]
+        if "regime" in collected_data:
+            regime = collected_data["regime"]
+            context_lines.append("[REGIME_HEALTH]")
+            if isinstance(regime, dict):
+                regime_type = regime.get("regime_type", "unknown")
+                context_lines.append(f"  regime_type: {regime_type}")
+                if "confidence" in regime:
+                    context_lines.append(f"  confidence: {regime['confidence']}")
+                if "last_updated" in regime:
+                    context_lines.append(f"  last_updated: {regime['last_updated']}")
+            context_lines.append("")
+
+        if "shock_score" in collected_data:
+            context_lines.append("[SHOCK_SCORE]")
+            if isinstance(shock_data, dict):
+                for key, value in shock_data.items():
+                    if key != "shock_score":  # shock_score уже показан в BRAKE_ALERT если нужно
+                        context_lines.append(f"  {key}: {value}")
+                if shock_score_value is not None:
+                    context_lines.append(f"  current_value: {shock_score_value}")
+            context_lines.append("")
+
+        if "drift_metrics" in collected_data:
+            drift = collected_data["drift_metrics"]
+            context_lines.append("[DRIFT]")
+            if isinstance(drift, dict):
+                for key, value in drift.items():
+                    if isinstance(value, (str, int, float)):
+                        context_lines.append(f"  {key}: {value}")
+                    else:
+                        context_lines.append(f"  {key}: {str(value)[:50]}")
+            context_lines.append("")
+
+        if blocks_dropped:
+            context_lines.append("[MISSING SOURCES]")
+            for dropped in blocks_dropped:
+                context_lines.append(f"  - {dropped}")
+            context_lines.append("")
+
+        # Budget enforcement для monitoring context
+        priority_order = ["brake_alert", "shock_score", "regime_health", "drift"]  # brake_alert критичный
+        context_lines, token_count, blocks_included, blocks_dropped = self._enforce_budget(
+            context_lines, blocks_included, blocks_dropped, priority_order
+        )
+        if any("budget_exceeded" in d for d in blocks_dropped):
+            context_degraded = True
+
+        context_text = "\n".join(context_lines)
+
+        # Status determination — applies L-08 clarification (никогда ABORTED)
+        if context_degraded:
+            status = "DEGRADED"
+        else:
+            status = "OK"
+
+        elapsed_time = time.time() - start_time
+        self.logger.info(f"Monitoring context built in {elapsed_time:.2f}s, "
+                        f"status: {status}, tokens: {token_count}, "
+                        f"included: {len(blocks_included)}, dropped: {len(blocks_dropped)}")
+
+        return ContextResult(
+            context=context_text,
+            total_tokens=token_count,
+            blocks_included=blocks_included,
+            blocks_dropped=blocks_dropped,
+            context_degraded=context_degraded,
+            status=status
+        )
+
+    def _build_postmortem_context(self, symbol: str, timeframe: str) -> ContextResult:
+        """
+        Context building для task_type='postmortem'. Slow Lane only.
+        По ТЗ Задача 3: scope "audit".
+
+        Источники: audit entries из predictions history.
+        Всегда Slow Lane. Минималистичная реализация с одним источником.
+        """
+        start_time = time.time()
+        context_degraded = False
+        blocks_included = []
+        blocks_dropped = []
+
+        # Postmortem context - всегда Slow Lane
+        is_fast = False  # postmortem никогда не Fast Lane
+
+        self.logger.info(f"Building postmortem context for {symbol}/{timeframe}, Slow Lane")
+
+        # Единственный источник: audit_entries
+        try:
+            audit_entries = self._collect_audit_entries(symbol, timeframe)
+            if audit_entries is not None:
+                blocks_included.append("audit_entries")
+            else:
+                blocks_dropped.append("audit_entries")
+                context_degraded = True
+
+        except Exception as e:
+            self.logger.error(f"Error collecting audit entries: {e}")
+            blocks_dropped.append("audit_entries")
+            context_degraded = True
+            audit_entries = None
+
+        # Build context string
+        context_lines = [
+            f"=== POSTMORTEM CONTEXT ({symbol}/{timeframe}) ===",
+            f"Task Type: postmortem",
+            f"Fast Lane: {is_fast}",
+            f"Timestamp: {start_time}",
+            ""
+        ]
+
+        # [AUDIT_ENTRIES] блок
+        if audit_entries is not None:
+            context_lines.append("[AUDIT_ENTRIES]")
+            context_lines.append(f"  count: {len(audit_entries)}")
+            for i, entry in enumerate(audit_entries[:5]):  # Limit to first 5 for context
+                if isinstance(entry, dict):
+                    prediction_id = entry.get("prediction_id", f"entry_{i}")
+                    result = entry.get("result", entry.get("outcome", "unknown"))
+                    accuracy = entry.get("accuracy", entry.get("score", "N/A"))
+                    context_lines.append(f"  [{i}] {prediction_id}: result={result}, accuracy={accuracy}")
+            if len(audit_entries) > 5:
+                context_lines.append(f"  ... and {len(audit_entries) - 5} more entries")
+            context_lines.append("")
+
+        if blocks_dropped:
+            context_lines.append("[MISSING SOURCES]")
+            for dropped in blocks_dropped:
+                context_lines.append(f"  - {dropped}")
+            context_lines.append("")
+
+        # Budget enforcement для postmortem context
+        priority_order = ["audit_entries"]  # один источник
+        context_lines, token_count, blocks_included, blocks_dropped = self._enforce_budget(
+            context_lines, blocks_included, blocks_dropped, priority_order
+        )
+        if any("budget_exceeded" in d for d in blocks_dropped):
+            context_degraded = True
+
+        context_text = "\n".join(context_lines)
+
+        # Status determination — applies L-08 clarification (никогда ABORTED)
+        if context_degraded:
+            status = "DEGRADED"
+        else:
+            status = "OK"
+
+        elapsed_time = time.time() - start_time
+        self.logger.info(f"Postmortem context built in {elapsed_time:.2f}s, "
+                        f"status: {status}, tokens: {token_count}, "
+                        f"included: {len(blocks_included)}, dropped: {len(blocks_dropped)}")
+
+        return ContextResult(
+            context=context_text,
+            total_tokens=token_count,
+            blocks_included=blocks_included,
+            blocks_dropped=blocks_dropped,
+            context_degraded=context_degraded,
+            status=status
+        )
 
 
 def build_context(query: str, symbol: str, timeframe: str, task_type: str = "forecast") -> ContextResult:
