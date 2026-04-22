@@ -226,9 +226,13 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 - `context_degraded = True`
 - Missing данные помечаются, но не блокируют
 - Возвращается минимальный валидный контекст (header + query + что успели собрать)
-- Статус `"OK"` или `"DEGRADED"`, но **никогда не `"ABORTED"`** в Fast Lane
+- Статус `"OK"` или `"DEGRADED"`, но **никогда не `"ABORTED"`** — независимо от lane (Fast или Slow).
 
-ABORT допустим **только** в Slow Lane (24h / research), где latency не критична.
+**Scope уточнение (TASK_05b-fix.1, 2026-04-22):**
+
+ABORT применим **только** к Model Core aggregation (Math Model v6.3 раздел 7, BINDING RULE aggregation) при невозможности собрать обязательные входы в timeout. Это уровень aggregation движка (агрегация весов компонентов direction × strength × confidence_point).
+
+ABORT **не применим** к Context Orchestrator forecast context — `ContextResult.status` всегда либо `"OK"` либо `"DEGRADED"`, независимо от Fast Lane или Slow Lane. Оригинальная формулировка "ABORT допустим только в Slow Lane" в первой редакции L-08 относилась к aggregation уровню Model Core, но в TASK_05b была ошибочно переинтерпретирована как разрешение `ABORTED` в `_build_forecast_context` Slow Lane branch — что привело к TASK_05b-fix.1 remediation.
 
 **Правило на будущее:**
 Перед любой реализацией timeout/failover логики в модулях Fast Lane pipeline (Context Orchestrator, Input Assembly, Model Core, Prior Manager) — проверь что код **не блокирует** возврат прогноза. Если ловишь себя на написании `return status="ABORTED"` в Fast Lane — это сигнал вернуться к ТЗ раздел 1.20 (Fast Lane / Slow Lane) и разделу "Fast Lane Implementation Invariant" из Задачи 3.

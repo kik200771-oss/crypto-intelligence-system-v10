@@ -303,15 +303,9 @@ class ContextOrchestrator:
         context_data.update(collected_data)
 
         # Conflict Exposure check (ТЗ Задача 3)
+        # Минимальная реализация TASK_05b-fix.1: без KB access — всегда False (честно "not determined").
+        # Полная реализация с KB search — TASK_05c.
         conflict_flag = False
-        if "patterns" in collected_data and collected_data["patterns"]:
-            # Минимальная Conflict Exposure логика
-            patterns = collected_data["patterns"]
-            if any(pattern.get("direction") == "UP" for pattern in patterns):
-                # В реальной системе здесь был бы полноценный KB lookup
-                # В TASK_05b делаем placeholder check
-                conflict_flag = True  # Placeholder - всегда conflicting for testing
-
         context_data["conflict_flag"] = conflict_flag
 
         # AXM Guard invocation
@@ -365,22 +359,13 @@ class ContextOrchestrator:
         context_text = "\n".join(context_lines)
         token_count = _count_tokens(context_text)
 
-        # Status determination - applies L-08 Fast Lane Invariant
-        if is_fast:
-            # Fast Lane никогда не возвращает ABORTED - L-08
-            if context_degraded:
-                status = "DEGRADED"
-            else:
-                status = "OK"
+        # Status determination — applies L-08 (clarified in TASK_05b-fix.1)
+        # Context Orchestrator forecast context — никогда ABORTED, ни в одной lane.
+        # ABORT применим только к Model Core aggregation (Math Model v6.3 раздел 7), не здесь.
+        if context_degraded:
+            status = "DEGRADED"
         else:
-            # Slow Lane может возвращать ABORTED при критических ошибках
-            missing_required = [name for name, _ in required_fast_sources if name not in collected_data]
-            if len(missing_required) >= 2:  # Threshold: 2+ missing required sources
-                status = "ABORTED"
-            elif context_degraded:
-                status = "DEGRADED"
-            else:
-                status = "OK"
+            status = "OK"
 
         elapsed_time = time.time() - start_time
         self.logger.info(f"Forecast context built in {elapsed_time:.2f}s, "
@@ -564,46 +549,60 @@ class ContextOrchestrator:
         }
 
         try:
-            # Basic epistemic checks - минимальная реализация для TASK_05b
+            # Minimal epistemic checks про axioms of market mechanics.
+            # Per ТЗ § 1.20: AXM — post-scoring guardrail, не contributing factor.
+            # Full AXM_001/002/004/008 — V10+ (требуют order flow / microstructure data).
 
-            # Check 1: Data consistency
-            if "patterns" in context_data and "filters" in context_data:
-                patterns = context_data["patterns"] or []
-                filters = context_data["filters"] or []
+            patterns = context_data.get("patterns") or []
+            regime = context_data.get("regime") or {}
+            features = context_data.get("features") or {}
 
-                # Простая проверка: если есть conflicting signals
-                if len(patterns) > 0 and len(filters) > 0:
-                    axm_result["axm_checks_performed"].append("pattern_filter_consistency")
-                    # Минимальная логика - в реальной системе будет сложнее
-                    axm_result["axm_notes"].append("Pattern-filter consistency check performed")
-
-            # Check 2: Context completeness
-            required_keys = ["symbol", "timeframe"]
-            missing_keys = [key for key in required_keys if key not in context_data]
-            if missing_keys:
+            # Check 1 — Pattern-Regime Consistency:
+            # patterns не должны предлагать direction во время HARD brake (R4).
+            # Math Model v6.3 раздел 3: R4 направление подавляется (A4[m,q]=-0.20).
+            regime_type = regime.get("regime_type") if isinstance(regime, dict) else None
+            if regime_type == "R4" and any(
+                p.get("direction") in ("UP", "DOWN") for p in patterns if isinstance(p, dict)
+            ):
                 axm_result["epistemic_risk_flag"] = True
-                axm_result["axm_notes"].append(f"Missing required context keys: {missing_keys}")
-                axm_result["axm_checks_performed"].append("context_completeness")
+                axm_result["axm_notes"].append(
+                    "Patterns propose direction during R4 hard-brake regime"
+                )
+            axm_result["axm_checks_performed"].append("pattern_regime_consistency")
 
-            # Check 3: Temporal consistency
-            if "timestamp" in context_data:
-                try:
-                    # Простая проверка что timestamp не из будущего
-                    ts = context_data["timestamp"]
-                    current_time = time.time()
-                    if isinstance(ts, (int, float)) and ts > current_time + 3600:  # +1 hour tolerance
-                        axm_result["epistemic_risk_flag"] = True
-                        axm_result["axm_notes"].append("Future timestamp detected - temporal inconsistency")
-                    axm_result["axm_checks_performed"].append("temporal_consistency")
-                except (TypeError, ValueError):
-                    pass  # Skip check if timestamp format invalid
+            # Check 2 — Pattern Direction Consistency:
+            # На одном таймфрейме одновременные UP и DOWN patterns — сигнал noise.
+            directions = {p.get("direction") for p in patterns if isinstance(p, dict)}
+            if "UP" in directions and "DOWN" in directions:
+                axm_result["epistemic_risk_flag"] = True
+                axm_result["axm_notes"].append(
+                    "Conflicting pattern directions (UP and DOWN) at same timeframe"
+                )
+            axm_result["axm_checks_performed"].append("pattern_direction_consistency")
 
-            self.logger.debug(f"AXM Guard performed {len(axm_result['axm_checks_performed'])} checks")
+            # Check 3 — Low Liquidity + Patterns (proxy for AXM_004 until microstructure exists):
+            # Если features указывают на очень низкую ликвидность — patterns могут быть noise.
+            liquidity = features.get("volume_indicator") if isinstance(features, dict) else None
+            if (
+                isinstance(liquidity, (int, float))
+                and liquidity < 0.1
+                and len(patterns) > 0
+            ):
+                axm_result["epistemic_risk_flag"] = True
+                axm_result["axm_notes"].append(
+                    "Patterns proposed with low liquidity (potential noise, proxy for AXM_004)"
+                )
+            axm_result["axm_checks_performed"].append("liquidity_pattern_plausibility")
+
+            self.logger.debug(
+                f"AXM Guard performed {len(axm_result['axm_checks_performed'])} checks, "
+                f"risk_flag={axm_result['epistemic_risk_flag']}"
+            )
 
         except Exception as e:
             self.logger.error(f"Error in AXM Guard: {e}")
             axm_result["epistemic_risk_flag"] = True
-            axm_result["axm_notes"].append(f"AXM Guard error: {str(e)}")
+            axm_result["axm_notes"].append(f"AXM Guard inner error: {str(e)}")
 
         return axm_result
 

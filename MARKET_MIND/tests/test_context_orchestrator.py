@@ -144,35 +144,41 @@ def test_save_session_raises_notimplemented():
 # FORECAST LOGIC TESTS (TASK_05b)
 # =============================================================================
 
-def test_fast_lane_invariant_never_aborted():
+def test_fast_lane_invariant_1h_never_aborted():
     """
-    Критический тест L-08 Fast Lane Invariant:
-    forecast на 1h/4h НИКОГДА не возвращает status="ABORTED".
+    Критический тест L-08 Fast Lane Invariant для 1h:
+    forecast на 1h НИКОГДА не возвращает status="ABORTED".
     """
     orchestrator = ContextOrchestrator()
-
-    fast_lane_timeframes = ["1h", "4h"]
-
-    for timeframe in fast_lane_timeframes:
-        result = orchestrator.build_context("test", "BTCUSDT", timeframe, task_type="forecast")
-
-        # Fast Lane Invariant: NEVER ABORTED
-        assert result.status != "ABORTED", f"Fast Lane Invariant violated: {timeframe} returned ABORTED"
-        assert result.status in ["OK", "DEGRADED"], f"Invalid status for {timeframe}: {result.status}"
-
-    print("[OK] test_fast_lane_invariant_never_aborted")
+    result = orchestrator.build_context("test", "BTCUSDT", "1h", task_type="forecast")
+    assert result.status != "ABORTED", "Fast Lane Invariant violated: 1h returned ABORTED"
+    assert result.status in ["OK", "DEGRADED"], f"Invalid status for 1h: {result.status}"
+    print("[OK] test_fast_lane_invariant_1h_never_aborted")
 
 
-def test_slow_lane_can_abort():
-    """Slow Lane (1d) может возвращать ABORTED при критических ошибках."""
+def test_fast_lane_invariant_4h_never_aborted():
+    """
+    Критический тест L-08 Fast Lane Invariant для 4h:
+    forecast на 4h НИКОГДА не возвращает status="ABORTED".
+    """
     orchestrator = ContextOrchestrator()
+    result = orchestrator.build_context("test", "BTCUSDT", "4h", task_type="forecast")
+    assert result.status != "ABORTED", "Fast Lane Invariant violated: 4h returned ABORTED"
+    assert result.status in ["OK", "DEGRADED"], f"Invalid status for 4h: {result.status}"
+    print("[OK] test_fast_lane_invariant_4h_never_aborted")
 
+
+def test_slow_lane_never_aborted_either():
+    """
+    Test после L-08 clarification в TASK_05b-fix.1:
+    Context Orchestrator forecast context на 1d (Slow Lane) тоже НИКОГДА не возвращает status="ABORTED".
+    ABORT применим только к Model Core aggregation, не к Context Orchestrator forecast context.
+    """
+    orchestrator = ContextOrchestrator()
     result = orchestrator.build_context("test", "BTCUSDT", "1d", task_type="forecast")
-
-    # Slow Lane может быть ABORTED, DEGRADED или OK
-    assert result.status in ["OK", "DEGRADED", "ABORTED"]
-
-    print("[OK] test_slow_lane_can_abort")
+    assert result.status != "ABORTED", "Slow Lane forecast context must not return ABORTED (L-08 clarification TASK_05b-fix.1)"
+    assert result.status in ["OK", "DEGRADED"], f"Invalid status for 1d: {result.status}"
+    print("[OK] test_slow_lane_never_aborted_either")
 
 
 def test_context_result_structure():
@@ -371,12 +377,13 @@ if __name__ == "__main__":
         test_save_session_raises_notimplemented,
     ]
 
-    # Forecast logic tests (TASK_05b)
+    # Forecast logic tests (TASK_05b + TASK_05b-fix.1)
     forecast_tests = [
         test_build_context_forecast_works,
         test_build_context_non_forecast_raises_notimplemented,
-        test_fast_lane_invariant_never_aborted,  # Critical L-08 test
-        test_slow_lane_can_abort,
+        test_fast_lane_invariant_1h_never_aborted,  # Critical L-08 test (split)
+        test_fast_lane_invariant_4h_never_aborted,  # Critical L-08 test (split)
+        test_slow_lane_never_aborted_either,        # L-08 clarification TASK_05b-fix.1
         test_context_result_structure,
         test_collect_methods_handle_missing_dirs,
         test_axm_guard_basic_functionality,
