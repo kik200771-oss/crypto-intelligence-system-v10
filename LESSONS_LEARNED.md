@@ -5,7 +5,7 @@
 > Пополняется **только через TASK от архитектора** — сам не добавляй.
 >
 > Формат одного урока описан в CLAUDE.md § 28.
-> Текущее количество уроков: **24** (L-01..L-25, L-12 reserved).
+> Текущее количество уроков: **27** (L-01..L-28, L-12 reserved).
 
 ---
 
@@ -1034,11 +1034,195 @@ Post-commit верификация commit через multiple channels в пра
 
 ---
 
+## L-26: Summary-vs-raw output в transitions между Частями TASK
+
+**Когда возникло:** TASK_05b-fix.1 (2026-04-22), TASK_05c (2026-04-22), TASK_05c-fix.1 (2026-04-23)
+**Категория:** workflow
+
+**Симптом (что мы увидели):**
+Persistent pattern через multiple TASKs: при transition между Частями TASK (особенно после diagnostic phase → action phase) Claude Code склонен возвращать **summary с эмодзи-маркерами** ("✅ Подтверждены все 4 проблемы", "✓ пусто, ✓ новые checks присутствуют", "Perfect! Часть 2 completed successfully") вместо raw output команд которые просил архитектор.
+
+Прецеденты:
+- TASK_05b-fix.1 Часть 1: Claude Code прислал summary "Подтверждены все 4 проблемы ✅ строки 376-379, 313, 580-595" без raw awk output
+- TASK_05a-fix.5 Часть 5: "Добавлены ровно 2 новых урока ✅ Счётчик обновлён ✅" без raw `git diff --cached LESSONS_LEARNED.md`
+- TASK_05c multiple transitions: "✓ tests passed" без полного stdout test run
+- TASK_05c-fix.1 Часть 2: начало response с "Perfect! Часть 2 completed successfully" + "grep shows 9 methods" без явного grep raw output
+
+**Причина (почему так произошло):**
+Interpretation-mode tension: Claude Code естественно обрабатывает tool output для формулирования ответа ("что важно из этого?"). Когда tool output длинный/технический — tendency свернуть его в summary. Это нормальное cognitive behavior, но оно conflict'ует с архитекторской потребностью в raw data для независимой верификации (L-24 spirit).
+
+Дополнительно: эмодзи-маркеры ("✅", "✓", "Perfect!") — это verbalization того что Claude Code решил результат "хороший", но архитектор не может верифицировать эту оценку без raw output.
+
+**Правильный подход:**
+В TASK инструкциях архитектор формулирует **явное требование "raw output без summary"** для каждой команды где нужна верификация:
+
+```
+Пришли raw output команд X, Y, Z в одном сообщении без summary, без emoji, без интерпретации.
+```
+
+При transition между Частями — дополнительное **напоминание**:
+> "Перед переходом к Части N+1 — пришли raw output команд текущей Части. Summary не принимается."
+
+Claude Code: при получении request на "raw output" — возвращать **ровно stdout команды**, без preamble "I'll check...", без postamble "everything looks good", без эмодзи markers типа "✅"/"✓". Только literal команда + literal stdout.
+
+Acceptable формы (не нарушают L-26):
+- Bash tool output отображается tool framework'ом сам по себе — это уже raw
+- Краткое neutral завершение "Commands executed, awaiting review" допустимо **если** все raw outputs уже в сообщении
+
+Неacceptable формы:
+- "✅ All 3 commands passed" → скрывает stdout
+- "Perfect! Everything works." → субъективная оценка
+- "Here's summary: 9 methods found" → interpretation вместо raw
+
+**Правило на будущее:**
+В любой TASK с multiple Частями и checkpoints между ними — архитектор **явно** пишет "без summary, без emoji, без интерпретации" при каждом requested raw output. Claude Code: если не уверен — возвращай больше raw данных, не меньше.
+
+**Применимость:** все multi-Part TASKs с verification checkpoints между Частями. Особенно diagnostic Частей и post-commit verification.
+
+---
+
+## L-27: Autonomous test fixes — semantic vs infrastructure failures
+
+**Когда возникло:** TASK_05c Часть 2 (2026-04-22), TASK_05c-fix.1 Часть 4 (2026-04-23)
+**Категория:** workflow
+
+**Симптом (что мы увидели):**
+**Прецедент 1 (semantic — violation):** TASK_05c Часть 2 — Claude Code при implementation research context обнаружил падающий existing тест `test_build_context_non_forecast_raises_notimplemented`. Тест проверял что `raise NotImplementedError` для research/monitoring/postmortem task_types. После реализации research — тест корректно fail для research случая. Claude Code **автономно обновил assertion** в тесте, исключив research из проверки, без эскалации архитектору.
+
+Технически решение было корректным (research теперь реализован, assertion должен измениться). Но процесс неправильный: тест fail мог бы signal bug в реализации research, а не required assertion update. Autonomous fix маскирует bug в гипотетическом худшем сценарии.
+
+**Прецедент 2 (infrastructure — acceptable):** TASK_05c-fix.1 Часть 4 — после добавления 3 новых тестов test runner показал 33/33 passed (ожидалось 36/36). Claude Code диагностировал через grep что все 36 функций в файле, но test runner имеет explicit function list и 3 новых не зарегистрированы. Добавил 3 строки в runner list автономно.
+
+Это formally L-27 violation, но fix был:
+- Pure infrastructure (registration gap, не semantic)
+- Minimally invasive (3 строки)
+- Явно transparent через reasoning trace ("The test runner has explicit test lists...")
+
+Architector accepted результат но pointed out violation.
+
+**Причина (почему так произошло):**
+Engineering instinct "make failing things pass" — естественная reaction developer на red tests. Плюс L-27 в его первой формулировке (pre-refinement) был absolutist: "всегда эскалировать". Это не различало случаи когда semantic fix может маскировать bug от infrastructure fix который является obvious registration.
+
+**Правильный подход:**
+
+**Category 1 — Semantic failures (assertion mismatch, behavior wrong, value mismatch):**
+- Test expects `result.status == "DEGRADED"` — gets `"OK"`
+- Test expects list of 3 items — gets 5
+- Test expects method to raise ValueError — no exception raised
+- Test asserts specific string in output — string absent
+
+**Action:** **ВСЕГДА § 3 STOP с эскалацией.** Формат:
+
+```
+§ 3 STOP: Failing test <test_name>
+Expected: <expected>
+Actual: <actual>
+Possible causes:
+  A) <hypothesis 1>
+  B) <hypothesis 2>
+  C) <hypothesis 3>
+Recommendation: <которую рекомендую>
+Жду решение архитектора. Не patching autonomously.
+```
+
+**Category 2 — Infrastructure failures (discovery, registration, import, file missing in test fixtures scope):**
+- Test function exists in file but not in explicit runner list
+- Import error для newly created module
+- Test fixture file missing after manual cleanup
+- Test data directory empty when test expects entries
+
+**Action:** **Fix acceptable** с обязательной **explicit transparency** в том же сообщении:
+
+```
+Infrastructure issue detected: <описание>
+Applying fix: <что делаю>
+Rationale: это infrastructure gap (registration/discovery/import), не semantic (behavior assertion).
+[выполнение fix + re-run]
+```
+
+Ключевой marker infrastructure: **тест не запустился** (not discovered, import failed) vs **тест запустился но failed assertion** (semantic).
+
+**Grey zone — escalate anyway:**
+Если не уверен к какой category относится — **эскалируй как semantic**. Цена ложной positive (escalate лишний раз) < цена false negative (autonomous fix замаскировал bug).
+
+**Правило на будущее:**
+- **Semantic test failure** — § 3 STOP, эскалация обязательна. Не patching test для "починки".
+- **Infrastructure test failure** — fix допустим с явной transparency в сообщении ("это infrastructure issue, не semantic, применяю fix: X"). Transparency обязательна — без неё autonomous fix всё равно violation.
+- При неуверенности — эскалация.
+
+**Применимость:** все TASK с существующими или новыми тестами, все случаи когда test suite после изменений показывает failures.
+
+---
+
+## L-28: Autonomous progression to next Part без explicit PA-09 Signal
+
+**Когда возникло:** TASK_05b (2026-04-22), TASK_05c Часть 3 (2026-04-22)
+**Категория:** workflow
+
+**Симптом (что мы увидели):**
+**Прецедент 1:** TASK_05b — после Pre-task Analysis Claude Code прислал 5 пунктов анализа, включая неверную интерпретацию P-02. Архитектор в коррекции написал "не задерживать старт" — не сказав явно "жди подтверждения перед Частью 1". Claude Code интерпретировал "не задерживать старт" как proceed signal, **выполнил все 7 Частей TASK_05b автономно**, закоммитил. Post-commit review выявил 4 отклонения от спецификации. Потребовал TASK_05b-fix.1 на ~45 минут remediation.
+
+**Прецедент 2:** TASK_05c Часть 3 — Claude Code завершил Часть 2 (research context), прислал раздумчивое сообщение с findings. Архитектор в ответном сообщении прислал feedback + instructions для Части 3 но **не выделил** явный Signal "приступай к Части 3". Claude Code интерпретировал продолжение мысли архитектора как implicit approval, начал monitoring implementation без explicit "приступай".
+
+**Причина (почему так произошло):**
+Asymmetric interpretation problem. Claude Code при получении response архитектора **ищет** signal "продолжай". При ambiguous signal — default behavior "продолжить работать" (что rational в большинстве cases). Но в TASK workflow с explicit checkpoints — ambiguity должна разрешаться в сторону "жди явный signal", не "продолжай".
+
+Архитектор со своей стороны (CV-15 в cognitive) может оставлять ambiguous signals thinking они clear. Complementary pair: CV-15 у архитектора + L-28 у Claude Code = same workflow break.
+
+**Правильный подход:**
+
+**PA-09 explicit signals архитектора (из CLAUDE_OPUS_COGNITIVE v1.6 Секция 4):**
+
+- **Signal 1 (Wait):** "Жди моего подтверждения перед Частью X" / "Подтверди понимание, я дам добро"
+- **Signal 2 (Proceed):** "Приступай к Части X после того как подтвердишь понимание" / "Продолжай с Части X"
+- **Signal 3 (Retrospective):** "Это для будущих шагов. Текущий шаг завершай как есть."
+
+**Ambiguous phrases запрещены архитектором но могут встречаться:**
+- "не задерживать старт"
+- "продолжай по TASK как написано" (без указания Части)
+- "приступай" (без указания к чему)
+- "это для справки" (unclear блокирует или нет)
+
+**Claude Code action при ambiguous signal:**
+
+**НЕ** интерпретировать "продолжай" / "приступай" / "go on" без указания **конкретной Части** как green light. Вместо этого:
+
+1. Отправить **§ 3 clarification request** (не full STOP, легче форма):
+
+```
+Clarification needed: не вижу explicit Signal 1/2/3 для следующего шага.
+Текущее состояние: <где я сейчас>
+Ожидаемое следующее действие по TASK: <что planned>
+Жду одного из:
+- "Жди подтверждения" (Signal 1) 
+- "Приступай к Части N" (Signal 2, с явной Частью)
+- "Коррекция retrospective, текущий шаг завершай" (Signal 3)
+```
+
+2. **Не двигаться дальше** до получения явной формулировки.
+
+Фразы "приступай", "продолжай", "go on", "хорошо", "ok", "после X" без указания **следующей Части explicitly** — **не являются достаточными**.
+
+**Edge case — один explicit checkpoint выполнен:**
+
+Если в TASK явно написано "выполни Часть 1 и жди подтверждения" — после подтверждения architect'ом "Часть 1 accepted, приступай к Части 2" — это valid Signal 2 (Часть 2 explicit upon в сообщении).
+
+Но если architect написал "Часть 1 accepted, продолжай" — **НЕ** валидно, clarification request.
+
+**Правило на будущее:**
+Claude Code: жди **explicit PA-09 Signal** с указанием конкретной Части before progression. Фразы без указания next Part — trigger для § 3 clarification request. Не интерпретировать implicit signals.
+
+**Архитектор:** каждое сообщение после completion одной Части — должно содержать один из 3 Signals в explicit формулировке (complementary к L-28 обязанность).
+
+**Применимость:** все multi-Part TASKs с explicit checkpoints, Pre-task Analysis workflow, любые mid-TASK corrections.
+
+---
+
 ## Индекс применимости
 
 | Тип задачи | Применимые уроки |
 |---|---|
-| Любая task | L-01, L-02, L-04, L-09, L-18, L-21, L-22 |
+| Любая task | L-01, L-02, L-04, L-09, L-18, L-21, L-22, L-26, L-28 |
 | Написание модуля в ENGINE/ | L-03, L-07 |
 | Fast Lane pipeline (Task 3, 6, 14, 21) | L-01, L-07, L-08 |
 | Миграция / cleanup | L-06, L-17 |
@@ -1050,9 +1234,11 @@ Post-commit верификация commit через multiple channels в пра
 | Любые операции над git-историей | L-15, L-16 |
 | Ревью состояния remote | L-13 |
 | Написание security-related контента | L-14 |
-| Выполнение команд в Claude Code env | L-18, L-20, L-21, L-23 |
+| Выполнение команд в Claude Code env | L-18, L-20, L-21, L-23, L-26 |
 | Cleanup / inspection канонических директорий | L-17 |
-| Составление § 9 отчётов с commit | L-22, L-24 |
+| Составление § 9 отчётов с commit | L-22, L-24, L-26 |
+| Тесты и test suite maintenance | L-19, L-27 |
+| Multi-Part TASKs с checkpoints | L-26, L-28 |
 | Post-commit verification | L-13, L-25 |
 | Архитектор пишет команды bash | L-20, L-23 |
 
@@ -1068,3 +1254,4 @@ Post-commit верификация commit через multiple channels в пра
 | 2026-04-18 | v1.3 | +L-17 (cleanup inspect internals), L-18 (ad-hoc диагностика = AP-07), L-19 (API mismatch в ad-hoc тестах), L-20 (security warnings от среды) по итогам TASK_03 и cleanup |
 | 2026-04-19 | v1.4 | +L-21 (debug_*.py = тот же AP-10 через отдельный файл), L-22 (номера уроков в отчётах — сверяться), L-23 (compound команды с redirection триггерят security warnings) по итогам TASK_04 |
 | 2026-04-21 | v1.5 | +L-24 (git diff --cached как обязательный checkpoint), +L-25 (raw.github cache TTL) по итогам TASK_05a review и incident с ложной тревогой "catastrophic failure" |
+| 2026-04-24 | v1.6 | +L-26 (summary-vs-raw в transitions), +L-27 (autonomous test fixes — semantic vs infrastructure), +L-28 (autonomous progression без explicit PA-09 Signal) по итогам TASK_05b/TASK_05b-fix.1/TASK_05c/TASK_05c-fix.1 workflow incidents за 2026-04-22/23 |
