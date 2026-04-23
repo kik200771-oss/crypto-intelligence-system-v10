@@ -878,6 +878,19 @@ class ContextOrchestrator:
             self.logger.error(f"Error reading KB excerpts from {kb_dir}: {e}")
             return None
 
+    def _collect_shock_score(self, symbol: str, timeframe: str) -> dict | None:
+        """Читает shock_score из источника Brake Detector (Task 11). Applies P-02 graceful degradation — Task 11 not yet implemented."""
+        # applies L-07 (no stub data), P-02 (graceful degradation)
+        # ВАЖНО: Task 11 (Brake Detector) не реализован на момент TASK_05c-fix.1.
+        # Метод возвращает None — monitoring context корректно не добавляет [BRAKE_ALERT].
+        # Когда Task 11 будет реализован: body метода заменится на чтение канонического
+        # shock_score артефакта. Path, schema, lifecycle определяются Task 11 scope.
+        self.logger.info(
+            f"shock_score collector: Task 11 (Brake Detector) not yet implemented — "
+            f"returning None for {symbol}/{timeframe}"
+        )
+        return None
+
     # =============================================================================
     # RESEARCH/MONITORING/POSTMORTEM CONTEXT LOGIC (TASK_05c)
     # =============================================================================
@@ -1065,21 +1078,8 @@ class ContextOrchestrator:
                 for source_info in monitoring_sources
             }
 
-            # Добавляем shock_score сбор (используем существующий метод если есть, иначе заглушка)
-            def collect_shock_score():
-                # Пока нет _collect_shock_score метода - создаём minimal implementation
-                shock_file = self.market_mind_root / "LAYER_H_INFRA" / "shock_score.json"
-                if shock_file.exists():
-                    try:
-                        content = shock_file.read_text(encoding="utf-8")
-                        data = json.loads(content)
-                        if isinstance(data, dict) and "shock_score" in data:
-                            return data
-                    except Exception as e:
-                        self.logger.error(f"Error reading shock_score: {e}")
-                return None
-
-            shock_future = executor.submit(collect_shock_score)
+            # shock_score через канонический _collect_shock_score (Task 11 pending → None graceful)
+            shock_future = executor.submit(self._collect_shock_score, symbol, timeframe)
             future_to_source[shock_future] = "shock_score"
 
             for future in as_completed(future_to_source, timeout=total_timeout):

@@ -413,6 +413,45 @@ def test_postmortem_context_degraded_when_no_audit():
     print("[OK] test_postmortem_context_degraded_when_no_audit")
 
 
+def test_collect_shock_score_returns_none_task11_pending():
+    """_collect_shock_score возвращает None пока Task 11 (Brake Detector) не реализован."""
+    orchestrator = ContextOrchestrator()
+    result = orchestrator._collect_shock_score("BTCUSDT", "1h")
+    assert result is None
+    print("[OK] test_collect_shock_score_returns_none_task11_pending")
+
+
+def test_collect_shock_score_signature():
+    """_collect_shock_score сохраняет canonical signature (symbol, timeframe) -> dict | None."""
+    import inspect
+    orchestrator = ContextOrchestrator()
+    sig = inspect.signature(orchestrator._collect_shock_score)
+    params = list(sig.parameters.keys())
+    assert params == ["symbol", "timeframe"], f"Expected [symbol, timeframe], got {params}"
+    print("[OK] test_collect_shock_score_signature")
+
+
+def test_monitoring_context_graceful_without_shock():
+    """Monitoring context работает gracefully когда shock_score = None (Task 11 pending)."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        # Создаём minimal structure — LAYER_F_FEEDBACK для regime/drift может быть пустым
+        # Главное: нет shock_score источника (он всегда None в текущей реализации)
+        (tmp_path / "CONFIG").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "LAYER_F_FEEDBACK").mkdir(parents=True, exist_ok=True)
+
+        orchestrator = ContextOrchestrator(market_mind_root=tmp_path)
+        result = orchestrator.build_context("test", "BTCUSDT", "1d", task_type="monitoring")
+
+        # Monitoring не падает даже когда shock_score None
+        assert isinstance(result, ContextResult)
+        assert result.status != "ABORTED"
+        # [BRAKE_ALERT] не появляется когда shock_score is None
+        assert "[BRAKE_ALERT]" not in result.context
+        print("[OK] test_monitoring_context_graceful_without_shock")
+
+
 def test_save_session_updates_fields():
     """save_session обновляет summary/new_items/bias в session_state.json."""
     import tempfile, shutil, json
@@ -525,6 +564,9 @@ if __name__ == "__main__":
         test_monitoring_context_returns_result,
         test_monitoring_context_never_aborted,
         test_monitoring_context_header,
+        test_collect_shock_score_returns_none_task11_pending,
+        test_collect_shock_score_signature,
+        test_monitoring_context_graceful_without_shock,
     ]
 
     # Postmortem context tests (TASK_05c)
